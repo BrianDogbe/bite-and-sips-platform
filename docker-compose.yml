@@ -1,0 +1,15 @@
+# Local PostgreSQL for development: `docker compose up -d`
+# Then DATABASE_URL=postgres://postgres:postgres@localhost:5432/biteandsips
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: biteandsips
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
