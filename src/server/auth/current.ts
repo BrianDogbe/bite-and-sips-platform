@@ -64,7 +64,9 @@ export async function setSessionCookie(token: string, expiresAt: Date, portal: P
     secure: env().NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    expires: expiresAt,
+    // Staff portals use a browser-session cookie: it survives refreshes but is gone when the browser is closed,
+    // so opening the site afresh shows the sign-in. Customers keep a persistent login.
+    ...(portal === 'customer' ? { expires: expiresAt } : {}),
   });
 }
 

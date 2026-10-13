@@ -21,6 +21,10 @@ import {
   riderAssignments,
   riderHeartbeat,
   purgeOldLocations,
+  riderStats,
+  updateRiderVehicle,
+  riderCashBalances,
+  recordCashHandover,
 } from '@/server/fulfillment/inhouse';
 import {
   requestPartnerDelivery,
@@ -47,7 +51,7 @@ after(done);
 beforeEach(async () => {
   await resetDb();
   fx = await seedFixture();
-  dispatcher = await makeUser(['dispatcher'], 'Dee Dispatch');
+  dispatcher = await makeUser(['manager'], 'Dee Manager');
   kitchen = await makeUser(['kitchen'], 'Kay Kitchen');
 });
 
@@ -150,7 +154,7 @@ test('rider declines → back to dispatch; reassignment keeps history; unrelated
 test('PIN brute force locks the delivery; dispatcher override completes with reason', async () => {
   const rider = await makeUser(['rider']);
   const online = await createOrder(orderInput(fx, { paymentMethod: 'cash', fulfillment: { type: 'delivery', addressLine: 'x road', ...near } }), { user: null, ip: '20.0.0.5' });
-  await recordCashCollected(await makeUser(['support']), online.orderId, (await orderRow(online.orderId)).totalPesewas);
+  await recordCashCollected(await makeUser(['manager']), online.orderId, (await orderRow(online.orderId)).totalPesewas);
   await assignRider(dispatcher, { orderId: online.orderId, riderUserId: rider.id });
   await riderRespond(rider, online.orderId, 'accept', null);
   await readyOrder(online.orderId);
@@ -275,7 +279,7 @@ test('partner booking success; duplicate request is idempotent; status sync; fee
     await readyOrder(r.orderId);
     await updateManualBookingStatus(dispatcher, { orderId: r.orderId, status: 'picked_up' });
     await assert.rejects(cancelPartnerBooking(dispatcher, r.orderId, 'too late'), /already picked up/);
-    await recordCashCollected(await makeUser(['support']), r.orderId, o.totalPesewas);
+    await recordCashCollected(await makeUser(['manager']), r.orderId, o.totalPesewas);
     await updateManualBookingStatus(dispatcher, { orderId: r.orderId, status: 'delivered', finalFeePesewas: 2000 });
     o = await orderRow(r.orderId);
     assert.equal(o.status, 'completed');
@@ -324,7 +328,7 @@ test('manual partner fallback: recorded, labelled manual, completed by staff', a
   await updateManualBookingStatus(dispatcher, { orderId: r.orderId, status: 'picked_up' });
   const t = await trackingView(r.trackingToken);
   assert.equal(t.partner?.manual, true);
-  await recordCashCollected(await makeUser(['support']), r.orderId, (await orderRow(r.orderId)).totalPesewas);
+  await recordCashCollected(await makeUser(['manager']), r.orderId, (await orderRow(r.orderId)).totalPesewas);
   await updateManualBookingStatus(dispatcher, { orderId: r.orderId, status: 'delivered' });
   const o = await orderRow(r.orderId);
   assert.equal(o.status, 'completed');
@@ -351,4 +355,62 @@ test('sandbox partner webhook: signature, duplicate webhook ignored, out-of-orde
   assert.equal(o.fulfillmentStatus, 'picked_up');
   const t = await trackingView(r.trackingToken);
   assert.equal(t.partner?.courierName, 'Kwame');
+});
+
+test('kitchen staff can assign an online rider, but not override offline status or set a fee; other roles cannot assign', async () => {
+  const rider = await makeUser(['rider'], 'Rita Rider');
+  const other = await makeUser(['rider']);
+  const r = await cashDeliveryOrder('20.0.0.9');
+  await assert.rejects(assignRider(other, { orderId: r.orderId, riderUserId: rider.id }), /permission/);
+  await assert.rejects(assignRider(kitchen, { orderId: r.orderId, riderUserId: rider.id, allowOffline: true }), /permission/);
+  await assert.rejects(assignRider(kitchen, { orderId: r.orderId, riderUserId: rider.id, riderFeePesewas: 999 }), /permission/);
+  await assignRider(kitchen, { orderId: r.orderId, riderUserId: rider.id });
+  const o = await orderRow(r.orderId);
+  assert.equal(o.fulfillmentStatus, 'assigned');
+});
+
+test('rider earnings, cash to hand in, hand-in recording and vehicle details', async () => {
+  const rider = await makeUser(['rider'], 'Rita Rider');
+  const owner = await makeUser(['owner']);
+  const r = await cashDeliveryOrder('20.0.0.11');
+  const total = (await orderRow(r.orderId)).totalPesewas;
+  await assignRider(dispatcher, { orderId: r.orderId, riderUserId: rider.id, riderFeePesewas: 700 });
+  await riderRespond(rider, r.orderId, 'accept', null);
+  await riderAdvance(rider, r.orderId, 'at_restaurant');
+  await readyOrder(r.orderId);
+  await riderAdvance(rider, r.orderId, 'picked_up');
+  await riderAdvance(rider, r.orderId, 'on_the_way');
+  await recordCashCollected(rider, r.orderId, total);
+  const track = await trackingView(r.trackingToken);
+  await confirmDeliveryWithPin(rider, r.orderId, track.pin!);
+
+  const st = await riderStats(rider);
+  assert.equal(st.today.deliveries, 1);
+  assert.equal(st.today.feePesewas, 700);
+  assert.equal(st.week.deliveries, 1);
+  assert.equal(st.month.feePesewas, 700);
+  assert.equal(st.cashCollectedTodayPesewas, total);
+  assert.equal(st.cashToHandInPesewas, total);
+  assert.equal(st.lifetime.deliveries, 1);
+  assert.equal(st.lifetime.feePesewas, 700);
+  assert.equal(st.lifetime.completionRate, 100);
+  assert.ok(st.lifetime.avgMinutes !== null);
+  assert.ok(st.profile.memberSince);
+
+  // Only owner/manager can settle; amounts are validated against what the rider holds.
+  await assert.rejects(recordCashHandover(rider, rider.id, 100), /permission/);
+  await assert.rejects(recordCashHandover(owner, rider.id, total + 1), /more than the rider is holding/);
+  await assert.rejects(recordCashHandover(owner, rider.id, 0), /greater than zero/);
+  assert.equal((await riderCashBalances(owner)).find((x) => x.riderUserId === rider.id)?.balancePesewas, total);
+  await recordCashHandover(owner, rider.id, 100, 'part');
+  assert.equal((await riderStats(rider)).cashToHandInPesewas, total - 100);
+  await recordCashHandover(owner, rider.id, total - 100);
+  assert.equal((await riderStats(rider)).cashToHandInPesewas, 0);
+
+  await updateRiderVehicle(rider, { vehicleType: 'bicycle', vehiclePlate: ' GR-1234 ' });
+  const prof = (await riderStats(rider)).profile;
+  assert.equal(prof.vehicleType, 'bicycle');
+  assert.equal(prof.vehiclePlate, 'GR-1234');
+  await assert.rejects(updateRiderVehicle(rider, { vehicleType: 'helicopter' }), /valid vehicle/);
+  await assert.rejects(riderStats(kitchen), /permission/);
 });

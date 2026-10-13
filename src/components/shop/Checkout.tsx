@@ -6,6 +6,7 @@ import { useCart, newIdempotencyKey, type CartLine } from '@/lib/cart';
 import { formatGHS } from '@/lib/money';
 import { formatLocalTime, localDateKey } from '@/lib/time';
 import { postJson } from '@/lib/use-live';
+import { matchAreas } from '@/lib/tema-areas';
 import { Icon } from '../Icon';
 import { ItemSheet } from './ItemSheet';
 import type { ClientMenuItem } from './types';
@@ -15,6 +16,9 @@ interface Zone {
   name: string;
   description: string | null;
   feePesewas: number;
+  perKmPesewas: number;
+  maxFeePesewas: number | null;
+  radiusM: number;
   minOrderPesewas: number;
   etaMinMinutes: number | null;
   etaMaxMinutes: number | null;
@@ -45,7 +49,7 @@ interface QuoteResp {
   maxPrepMinutes: number;
   promo: { code: string; description: string | null } | null;
   promoError: string | null;
-  zone: { id: number; name: string; verified: boolean; etaMinMinutes: number | null; etaMaxMinutes: number | null } | null;
+  zone: { id: number; name: string; verified: boolean; distanceKm: number; feeEstimated: boolean; etaMinMinutes: number | null; etaMaxMinutes: number | null } | null;
   fulfillmentError: string | null;
   minOrderError: string | null;
   charges: { taxLabel: string };
@@ -83,8 +87,12 @@ export function Checkout({
   const [addr, setAddr] = useState({ addressLine: '', landmark: '', instructions: '' });
   const [loc, setLoc] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
   const [locStatus, setLocStatus] = useState<string | null>(null);
+  const [zoneNoticeOn, setZoneNoticeOn] = useState(true);
+  const [locFailed, setLocFailed] = useState(false);
+  const [areaQuery, setAreaQuery] = useState('');
+  const [areaPicked, setAreaPicked] = useState<string | null>(null);
   const [zoneId, setZoneId] = useState<number | null>(null);
-  const [contact, setContact] = useState({ name: user?.name ?? '', phone: user?.phone?.replace(/^\+233/, '0') ?? '', email: user?.email ?? '' });
+  const [contact, setContact] = useState({ name: '', phone: '', email: '' });
   const [pay, setPay] = useState<'online' | 'cash'>(ordering.onlinePayments ? 'online' : 'cash');
   const [promoInput, setPromoInput] = useState('');
   const [promo, setPromo] = useState<string | null>(null);
@@ -182,20 +190,52 @@ export function Checkout({
   const [day, setDay] = useState<string | null>(null);
   const activeDay = day ?? slotsByDay[0]?.[0] ?? null;
 
+  // The "Delivering to…" note is a brief confirmation: show it whenever the zone/distance changes, then hide it after a few seconds.
+  const zoneKey = quote?.zone ? `${quote.zone.id}|${quote.zone.distanceKm}|${quote.zone.feeEstimated}` : '';
+  useEffect(() => {
+    if (!zoneKey) return;
+    setZoneNoticeOn(true);
+    const t = setTimeout(() => setZoneNoticeOn(false), 8000);
+    return () => clearTimeout(t);
+  }, [zoneKey]);
+
   function useMyLocation() {
     if (!('geolocation' in navigator)) {
-      setLocStatus('Your browser can’t share location. Choose your area instead.');
+      setLocFailed(true);
+      setLocStatus('Your browser can’t share location. Type your area below instead.');
       return;
     }
+    setLocFailed(false);
     setLocStatus('Finding your location…');
     navigator.geolocation.getCurrentPosition(
-      (p) => {
-        setLoc({ lat: Number(p.coords.latitude.toFixed(6)), lng: Number(p.coords.longitude.toFixed(6)), accuracy: p.coords.accuracy ?? null });
+      async (p) => {
+        const lat = Number(p.coords.latitude.toFixed(6));
+        const lng = Number(p.coords.longitude.toFixed(6));
+        const accuracy = p.coords.accuracy ?? null;
+        setLoc({ lat, lng, accuracy });
         setZoneId(null);
-        setLocStatus(p.coords.accuracy && p.coords.accuracy > 200 ? `Location found (accurate to about ${Math.round(p.coords.accuracy)} m). Please add a landmark.` : 'Location found.');
+        const rough = accuracy != null && accuracy > 200 ? ` (accurate to about ${Math.round(accuracy)} m)` : '';
+        setLocStatus(`Location found${rough}. Looking up your address…`);
+        try {
+          const g = await postJson<{ found: boolean; addressLine?: string; landmark?: string | null }>('/api/geocode', { lat, lng });
+          if (g.found && g.addressLine) {
+            setAddr((cur) => ({
+              ...cur,
+              addressLine: g.addressLine!,
+              landmark: cur.landmark || g.landmark || '',
+            }));
+            setFieldErrors((fe) => ({ ...fe, addressLine: '' }));
+            setLocStatus(`Location found${rough}. We filled in your address — please check it and add your house number, gate or landmark.`);
+          } else {
+            setLocStatus(`Location found${rough}. We couldn’t work out a street name here — please type your address and a landmark.`);
+          }
+        } catch {
+          setLocStatus(`Location found${rough}. We couldn’t look up the address — please type it in.`);
+        }
       },
       (err) => {
-        setLocStatus(err.code === err.PERMISSION_DENIED ? 'Location permission was denied. Choose your area from the list instead.' : 'We couldn’t get your location. Choose your area instead.');
+        setLocFailed(true);
+        setLocStatus(err.code === err.PERMISSION_DENIED ? 'Location permission was denied. Type your area below instead.' : 'We couldn’t get your location. Type your area below instead.');
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
@@ -308,12 +348,12 @@ export function Checkout({
         {!ordering.acceptingOrders && <p className="alert warn">{ordering.pauseMessage}</p>}
 
         <section className="panel" aria-labelledby="h-items">
-          <div className="row between">
+          <div className="dsp-head">
             <h2 id="h-items" style={{ margin: 0 }}>
-              Your order
+              Your order <span className="dsp-count">{cart.lines.length}</span>
             </h2>
-            <Link href="/menu" className="linkish">
-              Add more
+            <Link href="/menu" className="btn sm add-more">
+              <Icon name="plus" size={16} /> Add more
             </Link>
           </div>
           {cart.lines.map((l, i) => {
@@ -408,26 +448,57 @@ export function Checkout({
                     {locStatus}
                   </p>
                 )}
-                {!loc && ordering.allowManualZone && (
-                  <div className="field" style={{ marginTop: 8 }}>
-                    <label htmlFor="zone">Or choose your area</label>
-                    <select id="zone" className="select" value={zoneId ?? ''} onChange={(e) => setZoneId(e.target.value ? Number(e.target.value) : null)}>
-                      <option value="">Select an area…</option>
-                      {zones.map((z) => (
-                        <option key={z.id} value={z.id}>
-                          {z.name} ({formatGHS(z.feePesewas)})
-                        </option>
-                      ))}
-                    </select>
-                    <span className="hint">We’ll call to confirm your exact location if you don’t share it.</span>
+                {!loc && ordering.allowManualZone && locFailed && (
+                  <div className="field area-ahead" style={{ marginTop: 8 }}>
+                    <label htmlFor="area">Type your area</label>
+                    <input
+                      id="area"
+                      className="input"
+                      autoComplete="off"
+                      role="combobox"
+                      aria-expanded={!areaPicked && matchAreas(areaQuery).length > 0}
+                      aria-controls="area-list"
+                      value={areaQuery}
+                      placeholder="e.g. Community 18, Sakumono…"
+                      onChange={(e) => {
+                        setAreaQuery(e.target.value);
+                        setAreaPicked(null);
+                        setZoneId(null);
+                      }}
+                    />
+                    {!areaPicked && matchAreas(areaQuery).length > 0 && (
+                      <ul id="area-list" role="listbox" className="area-list">
+                        {matchAreas(areaQuery).map((name) => (
+                          <li key={name} role="option" aria-selected={false}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAreaPicked(name);
+                                setAreaQuery(name);
+                                setZoneId(zones[0]?.id ?? null);
+                                setAddr((cur) => ({ ...cur, addressLine: cur.addressLine.trim() ? cur.addressLine : `${name}, Tema` }));
+                                setFieldErrors((fe) => ({ ...fe, location: '', addressLine: '' }));
+                              }}
+                            >
+                              {name}
+                              <small>Tema</small>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {!areaPicked && areaQuery.trim().length > 1 && matchAreas(areaQuery).length === 0 && <span className="hint">We don’t recognise that area. Try a community number or neighbourhood in Tema.</span>}
+                    <span className="hint">{areaPicked ? 'The delivery fee shown is an estimate. We’ll call to confirm your exact location.' : 'We’ll call to confirm your exact location if you don’t share it.'}</span>
                   </div>
                 )}
                 {fieldErrors.location && <span className="field-error">{fieldErrors.location}</span>}
-                {quote?.zone && (
-                  <p className="alert ok small" style={{ marginTop: 8 }}>
+                {quote?.zone && zoneNoticeOn && (
+                  <p className="alert ok small" role="status" style={{ marginTop: 8 }}>
                     Delivering to {quote.zone.name}
                     {quote.zone.etaMinMinutes != null && quote.zone.etaMaxMinutes != null ? `, usually ${quote.zone.etaMinMinutes}–${quote.zone.etaMaxMinutes} min after your food is ready` : ''}.
-                    {!quote.zone.verified && ' Area chosen manually.'}
+                    {quote.zone.feeEstimated
+                      ? ' Area chosen manually — the delivery fee is an estimate; share your location for the exact fee.'
+                      : quote.zone.distanceKm > 0 && quote.deliveryFeePesewas > 0 && ` About ${quote.zone.distanceKm} km away.`}
                   </p>
                 )}
                 {quote?.fulfillmentError && (
@@ -489,18 +560,18 @@ export function Checkout({
           <div className="grid-2">
             <div className="field">
               <label htmlFor="name">Name</label>
-              <input id="name" className="input" autoComplete="name" value={contact.name} aria-invalid={!!fieldErrors.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} maxLength={80} />
+              <input id="name" className="input" autoComplete="off" placeholder="e.g. Kwame Mensah" value={contact.name} aria-invalid={!!fieldErrors.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} maxLength={80} />
               {fieldErrors.name && <span className="field-error">{fieldErrors.name}</span>}
             </div>
             <div className="field">
               <label htmlFor="phone">Phone</label>
-              <input id="phone" className="input" type="tel" inputMode="tel" autoComplete="tel" placeholder="024 123 4567" value={contact.phone} aria-invalid={!!fieldErrors.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} maxLength={16} />
+              <input id="phone" className="input" type="tel" inputMode="tel" autoComplete="off" placeholder="024 123 4567" value={contact.phone} aria-invalid={!!fieldErrors.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} maxLength={16} />
               {fieldErrors.phone && <span className="field-error">{fieldErrors.phone}</span>}
             </div>
           </div>
           <div className="field" style={{ marginTop: 14 }}>
             <label htmlFor="email">Email {pay === 'online' ? '' : <span className="hint">(optional)</span>}</label>
-            <input id="email" className="input" type="email" autoComplete="email" value={contact.email} aria-invalid={!!fieldErrors.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} maxLength={120} />
+            <input id="email" className="input" type="email" autoComplete="off" placeholder="e.g. kwame@example.com" value={contact.email} aria-invalid={!!fieldErrors.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} maxLength={120} />
             {pay === 'online' && <span className="hint">The payment provider sends your receipt here.</span>}
             {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
           </div>
@@ -508,7 +579,7 @@ export function Checkout({
             <label htmlFor="notes">
               Notes for the kitchen <span className="hint">(optional)</span>
             </label>
-            <textarea id="notes" className="textarea" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} />
+            <textarea id="notes" className="textarea" placeholder="Allergies, no onions, extra spicy, cutlery…" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} />
           </div>
           {!user && (
             <p className="hint" style={{ marginTop: 10 }}>

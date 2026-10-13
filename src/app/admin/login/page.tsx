@@ -14,7 +14,6 @@ export default async function AdminLogin({ searchParams }: { searchParams: Promi
         </div>
         {sp.denied && <p className="alert error">Your account doesn’t have access to that page.</p>}
         <LoginForm portal="admin" next={next} />
-        <p className="hint">Kitchen staff: use the kitchen display at /kitchen. Riders: use /rider.</p>
       </div>
     </div>
   );

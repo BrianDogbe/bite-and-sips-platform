@@ -49,7 +49,6 @@ export async function restaurantAction(_p: ActionResult | null, fd: FormData): P
       {
         isConfigured: bool(fd, 'isConfigured'),
         name: str(fd, 'name'),
-        tagline: str(fd, 'tagline'),
         about: str(fd, 'about'),
         phone: str(fd, 'phone'),
         whatsapp: str(fd, 'whatsapp'),
@@ -90,13 +89,18 @@ export async function orderingAction(_p: ActionResult | null, fd: FormData): Pro
         maxDaysAhead: n('maxDaysAhead', 2),
         lastOrderBeforeCloseMinutes: n('lastOrderBeforeCloseMinutes', 15),
         paymentWindowMinutes: n('paymentWindowMinutes', 20),
-        onlinePaymentsEnabled: bool(fd, 'onlinePaymentsEnabled'),
-        cashOnPickupEnabled: bool(fd, 'cashOnPickupEnabled'),
-        cashOnDeliveryEnabled: bool(fd, 'cashOnDeliveryEnabled'),
-        serviceChargeBps: pctToBps(fd, 'serviceChargePct'),
-        taxBps: pctToBps(fd, 'taxPct'),
-        taxLabel: str(fd, 'taxLabel') || 'Taxes & levies',
-        minOrderPesewas: money(fd, 'minOrder'),
+        // Payment switches and charges are owner-only; for anyone else the stored values are left untouched.
+        ...(user.permissions.has('settings.money')
+          ? {
+              onlinePaymentsEnabled: bool(fd, 'onlinePaymentsEnabled'),
+              cashOnPickupEnabled: bool(fd, 'cashOnPickupEnabled'),
+              cashOnDeliveryEnabled: bool(fd, 'cashOnDeliveryEnabled'),
+              serviceChargeBps: pctToBps(fd, 'serviceChargePct'),
+              taxBps: pctToBps(fd, 'taxPct'),
+              taxLabel: str(fd, 'taxLabel') || 'Taxes & levies',
+              minOrderPesewas: money(fd, 'minOrder'),
+            }
+          : {}),
         maxItemQuantity: n('maxItemQuantity', 20),
         allowCustomerCancelBeforeKitchen: bool(fd, 'allowCustomerCancelBeforeKitchen'),
         cancellationPolicy: str(fd, 'cancellationPolicy'),
@@ -138,7 +142,7 @@ export async function hoursAction(_p: ActionResult | null, fd: FormData): Promis
     const user = await guard();
     const rows: { weekday: number; opensAt: string; closesAt: string }[] = [];
     for (let d = 0; d < 7; d++) {
-      for (let k = 0; k < 2; k++) {
+      for (let k = 0; k < 1; k++) {
         const o = str(fd, `o-${d}-${k}`);
         const c = str(fd, `c-${d}-${k}`);
         if (o || c) {
@@ -186,6 +190,8 @@ export async function zoneAction(_p: ActionResult | null, fd: FormData): Promise
       centerLng: Number(str(fd, 'centerLng')),
       radiusM: Math.round(km * 1000),
       feePesewas: money(fd, 'fee'),
+      perKmPesewas: str(fd, 'perKm') ? money(fd, 'perKm') : 0,
+      maxFeePesewas: str(fd, 'maxFee') ? money(fd, 'maxFee') : null,
       minOrderPesewas: money(fd, 'minOrder'),
       etaMinMinutes: str(fd, 'etaMin') ? Number(str(fd, 'etaMin')) : null,
       etaMaxMinutes: str(fd, 'etaMax') ? Number(str(fd, 'etaMax')) : null,

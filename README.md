@@ -7,7 +7,7 @@ The whole platform is **one Next.js application** backed by **one PostgreSQL dat
 | Part | URL (path) | Optional subdomain | Who uses it |
 |---|---|---|---|
 | Customer website | `/` | `biteandsips.com` | Customers (guest or account) |
-| Admin portal | `/admin` | `admin.biteandsips.com` | Owner, managers, dispatchers, support/cashiers |
+| Admin portal | `/admin` | `admin.biteandsips.com` | Owner and managers |
 | Kitchen display | `/kitchen` | `kitchen.biteandsips.com` | Kitchen staff (tablet / TV) |
 | Rider app (installable PWA) | `/rider` | `rider.biteandsips.com` | In-house riders |
 | Fulfilment & integrations | `src/server/fulfillment` | none | Shared backend module |
@@ -26,7 +26,7 @@ npm install
 copy .env.example .env.local      # then edit .env.local (DATABASE_URL, APP_SECRET, CRON_SECRET)
 npm run db:migrate                # creates the tables
 npm run db:seed:demo -- --staff   # OPTIONAL demo menu + demo staff accounts (development only)
-npm run dev                       # http://localhost:3000
+npm run dev                       # http://localhost:3001
 ```
 
 Create your real owner account (prompts for a password):
@@ -35,9 +35,9 @@ Create your real owner account (prompts for a password):
 npm run db:create-owner -- --email you@example.com --name "Your Name"
 ```
 
-Then sign in at `http://localhost:3000/admin/login`. The overview page has a **Before you launch** checklist.
+Then sign in at `http://localhost:3001/admin/login`. The overview page has a **Before you launch** checklist.
 
-Demo staff (only if you seeded with `--staff`; password `demo-password-123`): `owner@demo.local`, `kitchen@demo.local` (→ `/kitchen`), `dispatch@demo.local`, `rider@demo.local` (→ `/rider`), `cashier@demo.local`.
+Demo staff (only if you seeded with `--staff`; password `demo-password-123`): `owner@demo.local`, `kitchen@demo.local` (→ `/kitchen`), `rider@demo.local` (→ `/rider`).
 
 ### Trying an order end-to-end locally
 1. Open `/menu`, add dishes, and go to checkout.

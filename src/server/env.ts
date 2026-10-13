@@ -11,7 +11,7 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
   DATABASE_SSL: z.enum(['disable', 'require', 'prefer']).default('prefer'),
-  APP_URL: z.string().url().default('http://localhost:3000'),
+  APP_URL: z.string().url().default('http://localhost:3001'),
   /** 32+ random bytes, used for HMAC of delivery PINs and other server-side secrets. */
   APP_SECRET: z.string().min(32, 'APP_SECRET must be at least 32 characters'),
   /** Comma separated host → portal mappings, e.g. admin.biteandsips.com. Optional. */

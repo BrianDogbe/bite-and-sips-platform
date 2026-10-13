@@ -25,13 +25,13 @@ TypeScript (`tsc --noEmit`, strict) passed with no errors.
 
 ### Rendering and browser checks
 These ran with a local harness. Next.js itself couldn't be installed in the build environment (see below).
-- **Server render of every page:** all 53 page/route combinations rendered without errors against a seeded database. This covered storefront, admin (every section and settings tab), kitchen and rider, and the permission redirects (guest → admin, kitchen → finance, dispatcher → settings, rider → kitchen).
+- **Server render of every page:** all 53 page/route combinations rendered without errors against a seeded database. This covered storefront, admin (every section and settings tab), kitchen and rider, and the permission redirects (guest → admin, kitchen → finance, support → settings, rider → kitchen).
 - **Browser end-to-end:** Chromium via Playwright, mounting the real client components against the real API route handlers. All 18 steps passed:
   - Menu, required-option validation, live price, cart and server-verified totals.
   - Form validation, cash pickup order and tracking page.
   - Kitchen ticket shown once, start → ready, customer page updating live, handoff blocked until cash is recorded.
   - Online checkout redirecting to the payment page.
-  - Delivery checkout with a manual area, rider going on duty, dispatcher assigning, rider offer hiding the address, pickup blocked until ready, kitchen readying, pickup, cash, wrong PIN rejected, correct PIN, customer page showing "Delivered".
+  - Delivery checkout with a manual area, rider going on duty, kitchen assigning, rider offer hiding the address, pickup blocked until ready, kitchen readying, pickup, cash, wrong PIN rejected, correct PIN, customer page showing "Delivered".
   - Guest lookup, with no uncaught browser errors.
 - Screenshots were reviewed at 390 px (phone) and 1280 px (desktop) widths.
 

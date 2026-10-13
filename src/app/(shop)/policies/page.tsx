@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getStorefront } from '@/server/storefront';
+import { BackLink } from '@/components/shop/BackLink';
 
 export const metadata: Metadata = { title: 'Terms, privacy and refunds' };
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,7 @@ export default async function Policies() {
   const r = sf.restaurant;
   return (
     <div className="wrap section" style={{ maxWidth: 760 }}>
+      <BackLink href="/" label="Back to home" />
       <h1>Terms, privacy and refunds</h1>
       {!r.isConfigured && <p className="alert warn">These policies are placeholders and have not yet been reviewed by the restaurant.</p>}
       <h2>Ordering</h2>

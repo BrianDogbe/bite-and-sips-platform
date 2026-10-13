@@ -16,6 +16,11 @@ export function LoginForm({ portal, next, idLabel = 'Email or phone' }: { portal
         setErr(null);
         try {
           await postJson('/api/auth/login', { identifier: id, password: pw, portal });
+          try {
+            sessionStorage.setItem(`bs-tab-${portal}`, '1');
+          } catch {
+            /* storage unavailable */
+          }
           window.location.assign(next);
         } catch (ex) {
           setErr((ex as Error).message);

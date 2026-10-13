@@ -2,7 +2,7 @@ import 'server-only';
 import { sql, type Db } from './db';
 import { loadMenu, isItemOrderable, itemScheduleAllows, type MenuItem } from './menu';
 import { getSettings, type OrderingSettings, type DeliverySettings } from './settings';
-import { listZones, resolveZone, ZONE_ERRORS, type DeliveryZone } from './zones';
+import { listZones, resolveZone, deliveryFeeFor, ZONE_ERRORS, type DeliveryZone } from './zones';
 import { percentOf } from '@/lib/money';
 import type { CartLineInput } from '@/lib/validation';
 
@@ -49,7 +49,7 @@ export interface Quote {
   maxPrepMinutes: number;
   promo: { id: number; code: string; description: string | null } | null;
   promoError: string | null;
-  zone: { id: number; name: string; verified: boolean; etaMinMinutes: number | null; etaMaxMinutes: number | null } | null;
+  zone: { id: number; name: string; verified: boolean; distanceKm: number; feeEstimated: boolean; etaMinMinutes: number | null; etaMaxMinutes: number | null } | null;
   fulfillmentError: string | null;
   minOrderError: string | null;
   charges: { serviceChargeBps: number; taxBps: number; taxLabel: string };
@@ -160,6 +160,7 @@ export interface QuoteContext {
   ordering?: OrderingSettings;
   delivery?: DeliverySettings;
   zones?: DeliveryZone[];
+  restaurant?: { lat: number | null; lng: number | null };
   tz?: string;
   at?: Date;
 }
@@ -176,7 +177,9 @@ export async function quote(
   const menu = ctx.menu ?? (await loadMenu({ includeArchived: true, includeInactiveCategories: true }, db));
   const ordering = ctx.ordering ?? (await getSettings('ordering', db));
   const delivery = ctx.delivery ?? (await getSettings('delivery', db));
-  const tz = ctx.tz ?? (await getSettings('restaurant', db)).timezone;
+  const restaurantSettings = ctx.tz && ctx.restaurant ? null : await getSettings('restaurant', db);
+  const tz = ctx.tz ?? restaurantSettings!.timezone;
+  const origin = ctx.restaurant ?? (restaurantSettings ? { lat: restaurantSettings.lat, lng: restaurantSettings.lng } : null);
   const at = ctx.at ?? new Date();
 
   const itemsById = new Map(menu.items.map((i) => [i.id, i]));
@@ -214,11 +217,11 @@ export async function quote(
     if (!ordering.deliveryEnabled) fulfillmentError = 'Delivery is not available right now.';
     else {
       const zones = ctx.zones ?? (await listZones({ activeOnly: true }, db));
-      const r = resolveZone(zones, input.fulfillment, delivery.allowManualZoneSelection);
+      const r = resolveZone(zones, input.fulfillment, delivery.allowManualZoneSelection, origin);
       if (!r.ok) fulfillmentError = r.reason === 'no_location' ? null : ZONE_ERRORS[r.reason];
       else {
-        deliveryFee = r.zone.feePesewas;
-        zone = { id: r.zone.id, name: r.zone.name, verified: r.verified, etaMinMinutes: r.zone.etaMinMinutes, etaMaxMinutes: r.zone.etaMaxMinutes };
+        deliveryFee = deliveryFeeFor(r.zone, r.feeDistanceM);
+        zone = { id: r.zone.id, name: r.zone.name, verified: r.verified, distanceKm: Math.round(r.feeDistanceM / 100) / 10, feeEstimated: r.feeEstimated, etaMinMinutes: r.zone.etaMinMinutes, etaMaxMinutes: r.zone.etaMaxMinutes };
         if (subtotal < r.zone.minOrderPesewas) minOrderError = `The minimum order for delivery to ${r.zone.name} is GH₵${(r.zone.minOrderPesewas / 100).toFixed(2)}.`;
       }
     }

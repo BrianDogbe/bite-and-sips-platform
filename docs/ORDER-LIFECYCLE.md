@@ -18,7 +18,7 @@ Customers see a simplified timeline derived from these (`customerStage`).
 - **Cash (if enabled):** placed immediately with payment `cash_due`. Pickup can't be handed over and delivery can't be completed until cash is recorded.
 - **Kitchen:** accept (optional) → start (order `in_progress`, optional recipe stock deduction) → ready (pickup: customer notified).
 - **Pickup completion:** staff confirm handoff → order `completed`.
-- **Delivery completion:** rider picks up (requires kitchen ready) → kitchen `handed_off` → PIN verified (or authorised dispatcher override with reason) → `completed`.
+- **Delivery completion:** rider picks up (requires kitchen ready) → kitchen `handed_off` → PIN verified (or authorised owner/manager override with reason) → `completed`.
 
 ## Exceptions and recovery
 | Situation | Handling |
@@ -38,6 +38,6 @@ Customers see a simplified timeline derived from these (`customerStage`).
 | Refunds | Requested → provider pending → processed only when provider confirms (webhook / sync) |
 | No riders online | Order stays `unassigned` (highlighted); assign anyway with explicit override, or book a partner |
 | Partner rejection / timeout | Rejected → back to dispatch + attention. Timeout → booking `unknown`; no rebooking until reconciled (ask partner or confirm manually) |
-| Failed delivery | Rider/dispatcher records reason → attention + customer notified → reattempt or mark returned; refund via order page |
+| Failed delivery | Rider/owner/manager records reason → attention + customer notified → reattempt or mark returned; refund via order page |
 | Lost connectivity / stale GPS | Screens show staleness; locations older than the threshold are labelled as possibly out of date; nothing is invented |
-| Wrong PIN | Limited attempts, then locked; dispatcher override with written reason (audited) |
+| Wrong PIN | Limited attempts, then locked; owner or manager override with written reason (audited) |

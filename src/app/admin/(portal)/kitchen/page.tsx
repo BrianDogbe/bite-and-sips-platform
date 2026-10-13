@@ -6,7 +6,7 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Kitchen monitor' };
 
-/** Read-only view of the live kitchen queue for managers/dispatchers. */
+/** Read-only view of the live kitchen queue for the owner and managers. */
 export default async function KitchenMonitor() {
   const user = await requirePagePerm('kitchen.monitor', '/admin/login');
   const tz = (await getSettings('restaurant')).timezone;
@@ -20,7 +20,7 @@ export default async function KitchenMonitor() {
           </Link>
         )}
       </div>
-      <div style={{ borderRadius: 18, overflow: 'hidden' }}>
+      <div className="monitor-wrap">
         <KitchenDisplay timezone={tz} userName={user.fullName} canMarkSoldOut={false} readOnly />
       </div>
     </>

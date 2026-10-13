@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { BackLink } from '@/components/shop/BackLink';
 import { getStorefront, publicZones, getMenuForStorefront } from '@/server/storefront';
 import { getCurrentUser } from '@/server/auth/current';
 import { Checkout } from '@/components/shop/Checkout';
@@ -12,6 +13,7 @@ export default async function CheckoutPage() {
   const r = sf.restaurant;
   return (
     <div className="wrap section" style={{ paddingTop: 28 }}>
+      <BackLink href="/menu" label="Back to menu" />
       <h1>Checkout</h1>
       <Checkout
         ordering={sf.ordering}

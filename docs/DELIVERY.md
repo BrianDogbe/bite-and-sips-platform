@@ -7,7 +7,7 @@ Admin → Settings → Delivery zones. Each zone is a circle (centre point plus 
 - **Availability:** riders toggle On duty, and the app sends a heartbeat every 30 s. A rider counts as *online* only with a recent heartbeat (setting: default 120 s), never because of an old session.
 - **Assignment:** Dispatch assigns or reassigns. Offline riders need an explicit override, which is recorded. The full assignment history and reasons are kept.
 - **Rider steps:** Accept or Decline (with a reason) → At restaurant → Picked up (only when the kitchen has marked the order ready) → Start trip → Arrived → PIN. Cash-on-delivery must be recorded before the PIN.
-- **Proof of delivery:** a 4-digit PIN derived by HMAC from the order ID (never stored) is shown only on the customer's tracking page. The attempt limit is configurable, after which the delivery locks and only a dispatcher override with a written reason can complete it.
+- **Proof of delivery:** a 4-digit PIN derived by HMAC from the order ID (never stored) is shown only on the customer's tracking page. The attempt limit is configurable, after which the delivery locks and only an owner or manager override with a written reason can complete it.
 - **Failure:** the reason is recorded, the order is flagged, the customer is notified, and dispatch chooses to reattempt or mark it returned.
 - **Navigation:** riders get Google Maps directions links to the restaurant and the customer. There is no in-app routing.
 

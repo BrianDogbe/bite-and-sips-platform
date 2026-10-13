@@ -169,7 +169,7 @@ export function ItemSheet({
             </fieldset>
           )}
 
-          {item.modifierGroups.map((g) => {
+          {item.modifierGroups.filter((g) => !(g.minSelect === 0 && /^extras?$/i.test(g.name.trim()))).map((g) => {
             const single = g.maxSelect === 1;
             const count = g.modifiers.filter((m) => mods.has(m.id)).length;
             const rule = g.minSelect > 0 ? (single ? 'Required' : `Choose ${g.minSelect}–${g.maxSelect}`) : single ? 'Optional' : `Up to ${g.maxSelect}`;
@@ -204,8 +204,8 @@ export function ItemSheet({
           })}
 
           <div className="field" style={{ marginTop: 18 }}>
-            <label htmlFor="item-note">Special instructions</label>
-            <textarea id="item-note" className="textarea" maxLength={200} placeholder="e.g. less pepper, no onions" value={note} onChange={(e) => setNote(e.target.value)} />
+            <label htmlFor="item-note">Extras or special instructions</label>
+            <textarea id="item-note" className="textarea" maxLength={200} placeholder="e.g. extra sauce, less pepper, no onions" value={note} onChange={(e) => setNote(e.target.value)} />
             <span className="hint">{200 - note.length} characters left</span>
           </div>
         </div>

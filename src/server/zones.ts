@@ -8,7 +8,10 @@ export interface DeliveryZone {
   centerLat: number;
   centerLng: number;
   radiusM: number;
+  /** Base fee. Total fee = base + perKm × distance (capped at maxFeePesewas when set). */
   feePesewas: number;
+  perKmPesewas: number;
+  maxFeePesewas: number | null;
   minOrderPesewas: number;
   etaMinMinutes: number | null;
   etaMaxMinutes: number | null;
@@ -32,8 +35,21 @@ export function haversineM(lat1: number, lng1: number, lat2: number, lng2: numbe
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
+/**
+ * Delivery fee for a zone at a given distance (metres) from the restaurant.
+ * Rounded up to the nearest 50 pesewas (GH₵0.50) and capped at the zone maximum.
+ * With no per-km rate this is just the zone's flat fee.
+ */
+export function deliveryFeeFor(zone: Pick<DeliveryZone, 'feePesewas' | 'perKmPesewas' | 'maxFeePesewas'>, distanceM: number): number {
+  if (!zone.perKmPesewas) return zone.feePesewas;
+  const raw = zone.feePesewas + (zone.perKmPesewas * Math.max(0, distanceM)) / 1000;
+  let fee = Math.ceil(raw / 50 - 1e-9) * 50;
+  if (zone.maxFeePesewas != null) fee = Math.min(fee, zone.maxFeePesewas);
+  return fee;
+}
+
 export type ZoneResolution =
-  | { ok: true; zone: DeliveryZone; verified: boolean; distanceM: number | null }
+  | { ok: true; zone: DeliveryZone; verified: boolean; distanceM: number | null; feeDistanceM: number; feeEstimated: boolean }
   | { ok: false; reason: 'outside_area' | 'no_location' | 'zone_unavailable' | 'manual_zone_disabled' };
 
 /**
@@ -46,6 +62,8 @@ export function resolveZone(
   zones: DeliveryZone[],
   input: { lat?: number | null; lng?: number | null; zoneId?: number | null },
   allowManual: boolean,
+  /** Where distance is measured from (the restaurant). Falls back to the zone centre. */
+  origin?: { lat: number | null; lng: number | null } | null,
 ): ZoneResolution {
   const active = zones.filter((z) => z.isActive);
   if (input.lat != null && input.lng != null && Number.isFinite(input.lat) && Number.isFinite(input.lng)) {
@@ -54,13 +72,17 @@ export function resolveZone(
       .filter((m) => m.d <= m.z.radiusM)
       .sort((a, b) => a.z.radiusM - b.z.radiusM);
     if (!matches.length) return { ok: false, reason: 'outside_area' };
-    return { ok: true, zone: matches[0].z, verified: true, distanceM: Math.round(matches[0].d) };
+    const z = matches[0].z;
+    const hasOrigin = origin?.lat != null && origin?.lng != null;
+    const fromOrigin = hasOrigin ? haversineM(origin!.lat!, origin!.lng!, input.lat!, input.lng!) : matches[0].d;
+    return { ok: true, zone: z, verified: true, distanceM: Math.round(matches[0].d), feeDistanceM: Math.round(fromOrigin), feeEstimated: false };
   }
   if (input.zoneId != null) {
     if (!allowManual) return { ok: false, reason: 'manual_zone_disabled' };
     const z = active.find((x) => x.id === input.zoneId);
     if (!z) return { ok: false, reason: 'zone_unavailable' };
-    return { ok: true, zone: z, verified: false, distanceM: null };
+    // No GPS: estimate with a typical distance (half the zone radius). Dispatch confirms the address by phone.
+    return { ok: true, zone: z, verified: false, distanceM: null, feeDistanceM: Math.round(z.radiusM / 2), feeEstimated: true };
   }
   return { ok: false, reason: 'no_location' };
 }

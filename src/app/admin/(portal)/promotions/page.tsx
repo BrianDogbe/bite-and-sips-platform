@@ -47,15 +47,21 @@ export default async function Promotions() {
   return (
     <>
       <div className="admin-top">
-        <h1>Promotions</h1>
+        <div>
+          <h1>Promotions</h1>
+          <p className="muted" style={{ margin: 0 }}>Promo codes customers can enter at checkout.</p>
+        </div>
       </div>
-      <div className="two-col">
+      <div className="two-col zones-layout">
         <section className="panel">
+          <h2 className="dsp-head">
+            Promo codes <span className="dsp-count">{rows.length}</span>
+          </h2>
           {rows.length === 0 ? (
-            <p className="muted">No promo codes yet.</p>
+            <p className="dsp-empty">No promo codes yet.</p>
           ) : (
             <div className="table-wrap">
-              <table className="data">
+              <table className="data cases-table">
                 <thead>
                   <tr><th>Code</th><th>Discount</th><th>Window</th><th>Used</th><th>Status</th></tr>
                 </thead>
@@ -75,21 +81,40 @@ export default async function Promotions() {
           )}
         </section>
         <section className="panel">
-          <h2 style={{ fontSize: '1.15rem' }}>New promo code</h2>
+          <h2 className="dsp-head">New promo code</h2>
           <ActionForm action={savePromo} className="stack" resetOnSuccess>
-            <div className="field"><label htmlFor="p-code">Code</label><input id="p-code" name="code" className="input" required maxLength={30} style={{ textTransform: 'uppercase' }} /></div>
-            <div className="field"><label htmlFor="p-desc">Description shown to customers</label><input id="p-desc" name="description" className="input" maxLength={200} /></div>
-            <div className="grid-2">
-              <div className="field"><label htmlFor="p-type">Type</label><select id="p-type" name="discountType" className="select"><option value="percent">Percent off</option><option value="fixed">Amount off (GH₵)</option></select></div>
-              <div className="field"><label htmlFor="p-val">Value</label><input id="p-val" name="value" className="input" required inputMode="decimal" placeholder="10" /></div>
-              <div className="field"><label htmlFor="p-min">Minimum order (GH₵)</label><input id="p-min" name="minSubtotal" className="input" inputMode="decimal" /></div>
-              <div className="field"><label htmlFor="p-max">Maximum discount (GH₵)</label><input id="p-max" name="maxDiscount" className="input" inputMode="decimal" /></div>
-              <div className="field"><label htmlFor="p-s">Starts</label><input id="p-s" name="startsAt" type="datetime-local" className="input" /></div>
-              <div className="field"><label htmlFor="p-e">Ends</label><input id="p-e" name="endsAt" type="datetime-local" className="input" /></div>
-              <div className="field"><label htmlFor="p-lim">Total uses allowed</label><input id="p-lim" name="usageLimit" type="number" min={1} className="input" /></div>
+            <div className="zone-groups">
+              <div className="set-group">
+                <p className="set-label">Code</p>
+                <div className="field"><label htmlFor="p-code">Code</label><input id="p-code" name="code" className="input" required maxLength={30} style={{ textTransform: 'uppercase' }} /></div>
+                <div className="field"><label htmlFor="p-desc">Description shown to customers</label><input id="p-desc" name="description" className="input" maxLength={200} /></div>
+              </div>
+              <div className="set-group">
+                <p className="set-label">Discount</p>
+                <div className="form-aligned two">
+                  <div className="field"><label htmlFor="p-type">Type</label><select id="p-type" name="discountType" className="select"><option value="percent">Percent off</option><option value="fixed">Amount off (GH₵)</option></select></div>
+                  <div className="field"><label htmlFor="p-val">Value</label><input id="p-val" name="value" className="input" required inputMode="decimal" placeholder="10" /></div>
+                  <div className="field"><label htmlFor="p-min">Minimum order (GH₵)</label><input id="p-min" name="minSubtotal" className="input" inputMode="decimal" /></div>
+                  <div className="field"><label htmlFor="p-max">Maximum discount (GH₵)</label><input id="p-max" name="maxDiscount" className="input" inputMode="decimal" /></div>
+                </div>
+              </div>
+              <div className="set-group">
+                <p className="set-label">When it works</p>
+                <div className="form-aligned two">
+                  <div className="field"><label htmlFor="p-s">Starts</label><input id="p-s" name="startsAt" type="datetime-local" className="input" /></div>
+                  <div className="field"><label htmlFor="p-e">Ends</label><input id="p-e" name="endsAt" type="datetime-local" className="input" /></div>
+                  <div className="field"><label htmlFor="p-lim">Total uses allowed</label><input id="p-lim" name="usageLimit" type="number" min={1} className="input" /></div>
+                </div>
+              </div>
+              <label className="check check-card">
+                <input type="checkbox" name="isActive" defaultChecked />
+                <span>
+                  Active
+                  <span className="hint" style={{ display: 'block' }}>Customers can use the code while it is active.</span>
+                </span>
+              </label>
             </div>
-            <label className="check"><input type="checkbox" name="isActive" defaultChecked /> Active</label>
-            <SubmitButton>Save promotion</SubmitButton>
+            <SubmitButton className="btn primary">Save promotion</SubmitButton>
           </ActionForm>
           <p className="hint" style={{ marginTop: 8 }}>Dates use this device’s timezone. The restaurant runs on {r.timezone}.</p>
         </section>

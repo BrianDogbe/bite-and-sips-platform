@@ -23,6 +23,6 @@ export function hasPerm(user: SessionUser | null | undefined, perm: Permission):
 
 export function actorOf(user: SessionUser | null | undefined, ip?: string | null): Actor {
   if (!user) return { userId: null, label: 'customer', ip };
-  const primary = (['owner', 'manager', 'dispatcher', 'support', 'kitchen', 'rider', 'customer'] as const).find((r) => user.roles.includes(r));
+  const primary = (['owner', 'manager', 'kitchen', 'rider', 'customer'] as const).find((r) => user.roles.includes(r));
   return { userId: user.id, label: primary ?? 'user', ip };
 }

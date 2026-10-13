@@ -21,14 +21,14 @@ const TABS = [
   ['ordering', 'Ordering & payments'],
   ['hours', 'Hours & closures'],
   ['zones', 'Delivery zones'],
-  ['delivery', 'Delivery, stock & alerts'],
+  ['delivery', 'Operations'],
 ] as const;
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-function Check({ name, label, checked, hint }: { name: string; label: string; checked: boolean; hint?: string }) {
+function Check({ name, label, checked, hint, card, disabled }: { name: string; label: string; checked: boolean; hint?: string; card?: boolean; disabled?: boolean }) {
   return (
-    <label className="check">
-      <input type="checkbox" name={name} defaultChecked={checked} />
+    <label className={card ? 'check check-card' : 'check'}>
+      <input type="checkbox" name={name} defaultChecked={checked} disabled={disabled} />
       <span>
         {label}
         {hint && <span className="hint" style={{ display: 'block' }}>{hint}</span>}
@@ -47,7 +47,8 @@ function F({ id, label, hint, children }: { id: string; label: string; hint?: st
 }
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  await requirePagePerm('settings.manage', '/admin/login');
+  const viewer = await requirePagePerm('settings.manage', '/admin/login');
+  const money = viewer.permissions.has('settings.money');
   const sp = await searchParams;
   const tab = TABS.some(([k]) => k === sp.tab) ? sp.tab! : 'restaurant';
   const [s, sched, zones, closures] = await Promise.all([getAllSettings(), loadSchedule(), listZones(), upcomingClosures()]);
@@ -71,29 +72,44 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       </nav>
 
       {tab === 'restaurant' && (
-        <ActionForm action={A.restaurantAction} className="panel stack" key="restaurant">
-          <div className="grid-2">
-            <F id="r-name" label="Restaurant name"><input id="r-name" name="name" className="input" defaultValue={r.name} required maxLength={80} /></F>
-            <F id="r-tag" label="Tagline"><input id="r-tag" name="tagline" className="input" defaultValue={r.tagline} maxLength={140} /></F>
-            <F id="r-phone" label="Phone"><input id="r-phone" name="phone" className="input" defaultValue={r.phone} /></F>
-            <F id="r-wa" label="WhatsApp number"><input id="r-wa" name="whatsapp" className="input" defaultValue={r.whatsapp} /></F>
-            <F id="r-email" label="Email"><input id="r-email" name="email" type="email" className="input" defaultValue={r.email} /></F>
-            <F id="r-tz" label="Timezone" hint="Ghana: Africa/Accra"><input id="r-tz" name="timezone" className="input" defaultValue={r.timezone} /></F>
-            <F id="r-addr" label="Street address"><input id="r-addr" name="addressLine" className="input" defaultValue={r.addressLine} /></F>
-            <F id="r-city" label="City / area"><input id="r-city" name="city" className="input" defaultValue={r.city} /></F>
-            <F id="r-lat" label="Latitude" hint="Used for rider navigation. Find it by long-pressing the shop in Google Maps."><input id="r-lat" name="lat" className="input" inputMode="decimal" defaultValue={r.lat ?? ''} /></F>
-            <F id="r-lng" label="Longitude"><input id="r-lng" name="lng" className="input" inputMode="decimal" defaultValue={r.lng ?? ''} /></F>
-          </div>
-          <F id="r-about" label="About the restaurant (homepage)"><textarea id="r-about" name="about" className="textarea" defaultValue={r.about} maxLength={2000} /></F>
-          <F id="r-pick" label="Pickup instructions"><input id="r-pick" name="pickupInstructions" className="input" defaultValue={r.pickupInstructions} maxLength={500} /></F>
-          <div className="grid-2">
-            <F id="r-ig" label="Instagram URL"><input id="r-ig" name="instagram" className="input" defaultValue={r.instagram} /></F>
-            <F id="r-fb" label="Facebook URL"><input id="r-fb" name="facebook" className="input" defaultValue={r.facebook} /></F>
-            <F id="r-tt" label="TikTok URL"><input id="r-tt" name="tiktok" className="input" defaultValue={r.tiktok} /></F>
-            <F id="r-x" label="X URL"><input id="r-x" name="x" className="input" defaultValue={r.x} /></F>
-          </div>
-          <Check name="isConfigured" label="These are the restaurant’s real details" checked={r.isConfigured} hint="Removes the setup reminder and the “placeholder policies” notice." />
-          <SubmitButton>Save restaurant details</SubmitButton>
+        <ActionForm action={A.restaurantAction} className="stack settings-narrow" key="restaurant">
+          <section className="panel stack">
+            <h2 style={{ fontSize: '1.15rem' }}>Restaurant and contact</h2>
+            <div className="form-aligned two">
+              <F id="r-name" label="Restaurant name"><input id="r-name" name="name" className="input" defaultValue={r.name} required maxLength={80} /></F>
+              <F id="r-phone" label="Phone"><input id="r-phone" name="phone" className="input" defaultValue={r.phone} /></F>
+              <F id="r-wa" label="WhatsApp number"><input id="r-wa" name="whatsapp" className="input" defaultValue={r.whatsapp} /></F>
+              <F id="r-email" label="Email"><input id="r-email" name="email" type="email" className="input" defaultValue={r.email} /></F>
+              <F id="r-tz" label="Timezone" hint="Ghana: Africa/Accra"><input id="r-tz" name="timezone" className="input" defaultValue={r.timezone} /></F>
+            </div>
+          </section>
+          <section className="panel stack">
+            <h2 style={{ fontSize: '1.15rem' }}>Location</h2>
+            <div className="form-aligned two">
+              <F id="r-addr" label="Street address"><input id="r-addr" name="addressLine" className="input" defaultValue={r.addressLine} /></F>
+              <F id="r-city" label="City / area"><input id="r-city" name="city" className="input" defaultValue={r.city} /></F>
+              <F id="r-lat" label="Latitude" hint="Used for rider navigation. Find it by long-pressing the shop in Google Maps."><input id="r-lat" name="lat" className="input" inputMode="decimal" defaultValue={r.lat ?? ''} /></F>
+              <F id="r-lng" label="Longitude"><input id="r-lng" name="lng" className="input" inputMode="decimal" defaultValue={r.lng ?? ''} /></F>
+            </div>
+          </section>
+          <section className="panel stack">
+            <h2 style={{ fontSize: '1.15rem' }}>About and pickup</h2>
+            <div className="form-aligned two top">
+              <F id="r-about" label="About the restaurant (homepage)"><textarea id="r-about" name="about" className="textarea" defaultValue={r.about} maxLength={2000} /></F>
+              <F id="r-pick" label="Pickup instructions"><textarea id="r-pick" name="pickupInstructions" className="textarea" defaultValue={r.pickupInstructions} maxLength={500} /></F>
+            </div>
+          </section>
+          <section className="panel stack">
+            <h2 style={{ fontSize: '1.15rem' }}>Social links and setup</h2>
+            <div className="form-aligned two">
+              <F id="r-ig" label="Instagram URL"><input id="r-ig" name="instagram" className="input" defaultValue={r.instagram} /></F>
+              <F id="r-fb" label="Facebook URL"><input id="r-fb" name="facebook" className="input" defaultValue={r.facebook} /></F>
+              <F id="r-tt" label="TikTok URL"><input id="r-tt" name="tiktok" className="input" defaultValue={r.tiktok} /></F>
+              <F id="r-x" label="X URL"><input id="r-x" name="x" className="input" defaultValue={r.x} /></F>
+            </div>
+            <Check card name="isConfigured" label="These are the restaurant’s real details" checked={r.isConfigured} hint="Removes the setup reminder and the “placeholder policies” notice." />
+          </section>
+          <SubmitButton className="btn primary lg">Save restaurant details</SubmitButton>
         </ActionForm>
       )}
 
@@ -101,17 +117,25 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <ActionForm action={A.orderingAction} className="stack" key="ordering">
           <section className="panel stack">
             <h2 style={{ fontSize: '1.15rem' }}>Taking orders</h2>
-            <Check name="acceptingOrders" label="Accept online orders" checked={o.acceptingOrders} hint="Untick to pause ordering instantly (e.g. kitchen overwhelmed)." />
-            <F id="o-pm" label="Message shown while paused"><input id="o-pm" name="pauseMessage" className="input" defaultValue={o.pauseMessage} maxLength={200} /></F>
-            <div className="row">
-              <Check name="pickupEnabled" label="Pickup" checked={o.pickupEnabled} />
-              <Check name="deliveryEnabled" label="Delivery" checked={o.deliveryEnabled} />
+            <div className="set-rows">
+              <Check card name="acceptingOrders" label="Accept online orders" checked={o.acceptingOrders} hint="Untick to pause ordering instantly (e.g. kitchen overwhelmed)." />
+              <F id="o-pm" label="Message shown while paused"><input id="o-pm" name="pauseMessage" className="input" defaultValue={o.pauseMessage} maxLength={200} /></F>
             </div>
-            <Check name="autoAcceptOrders" label="Auto-accept paid orders in the kitchen" checked={o.autoAcceptOrders} hint="When off, kitchen staff tap “Accept” on each new order." />
+            <div className="set-group">
+              <p className="set-label">How customers can order</p>
+              <div className="set-two">
+                <Check card name="pickupEnabled" label="Pickup" checked={o.pickupEnabled} hint="Customers collect from the counter." />
+                <Check card name="deliveryEnabled" label="Delivery" checked={o.deliveryEnabled} hint="Orders are brought to the customer." />
+              </div>
+            </div>
+            <div className="set-group">
+              <p className="set-label">In the kitchen</p>
+              <Check card name="autoAcceptOrders" label="Auto-accept paid orders in the kitchen" checked={o.autoAcceptOrders} hint="When off, kitchen staff tap “Accept” on each new order." />
+            </div>
           </section>
           <section className="panel stack">
             <h2 style={{ fontSize: '1.15rem' }}>Kitchen capacity and scheduling</h2>
-            <div className="grid-2">
+            <div className="grid-2 form-aligned">
               <F id="o-sm" label="Slot length (minutes)"><input id="o-sm" name="slotMinutes" type="number" min={5} max={60} className="input" defaultValue={o.slotMinutes} /></F>
               <F id="o-sc" label="Orders per slot" hint="Hard limit; customers can’t pick full slots."><input id="o-sc" name="slotCapacity" type="number" min={1} max={200} className="input" defaultValue={o.slotCapacity} /></F>
               <F id="o-lead" label="Minimum lead time (minutes)" hint="The longest dish prep time is used if higher."><input id="o-lead" name="minLeadMinutes" type="number" min={0} max={240} className="input" defaultValue={o.minLeadMinutes} /></F>
@@ -122,29 +146,48 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </section>
           <section className="panel stack">
             <h2 style={{ fontSize: '1.15rem' }}>Payments</h2>
-            <p className="small">
-              Online payment provider: {provider === 'paystack' ? <Badge tone="ok">Paystack (live configuration)</Badge> : provider === 'mock' ? <Badge tone="warn">Test mode (simulated payments)</Badge> : <Badge tone="neutral">Not configured</Badge>}. This is set by the server environment (PAYMENT_PROVIDER), not here.
+            <p className="set-status">
+              <strong>Online payment provider</strong>
+              <span>{provider === 'paystack' ? <Badge tone="ok">Paystack (live configuration)</Badge> : provider === 'mock' ? <Badge tone="warn">Test mode (simulated payments)</Badge> : <Badge tone="neutral">Not configured</Badge>}</span>
+              <span className="hint">This is set by the server environment (PAYMENT_PROVIDER), not here.</span>
             </p>
-            <Check name="onlinePaymentsEnabled" label="Offer Mobile Money / card payment" checked={o.onlinePaymentsEnabled} />
-            <Check name="cashOnPickupEnabled" label="Offer cash on pickup" checked={o.cashOnPickupEnabled} hint="Cash orders go to the kitchen immediately, before payment." />
-            <Check name="cashOnDeliveryEnabled" label="Offer cash on delivery" checked={o.cashOnDeliveryEnabled} hint="Riders must record the cash before completing the delivery." />
-            <F id="o-pw" label="Time allowed to pay online (minutes)" hint="Unpaid orders are cancelled after this (after checking with the provider)."><input id="o-pw" name="paymentWindowMinutes" type="number" min={5} max={120} className="input" defaultValue={o.paymentWindowMinutes} /></F>
+            <div className="set-group">
+              <p className="set-label">Ways customers can pay</p>
+              <div className="set-rows">
+                <Check card disabled={!money} name="onlinePaymentsEnabled" label="Offer Mobile Money / card payment" checked={o.onlinePaymentsEnabled} hint="Customers pay online through the payment provider." />
+                <Check card disabled={!money} name="cashOnPickupEnabled" label="Offer cash on pickup" checked={o.cashOnPickupEnabled} hint="Cash orders go to the kitchen immediately, before payment." />
+                <Check card disabled={!money} name="cashOnDeliveryEnabled" label="Offer cash on delivery" checked={o.cashOnDeliveryEnabled} hint="Riders must record the cash before completing the delivery." />
+              </div>
+            </div>
+            <div className="set-group">
+              <p className="set-label">Online payment window</p>
+              <div className="form-aligned one">
+                <F id="o-pw" label="Time allowed to pay online (minutes)" hint="Unpaid orders are cancelled after this (after checking with the provider)."><input id="o-pw" name="paymentWindowMinutes" type="number" min={5} max={120} className="input" defaultValue={o.paymentWindowMinutes} /></F>
+              </div>
+            </div>
           </section>
           <section className="panel stack">
             <h2 style={{ fontSize: '1.15rem' }}>Charges</h2>
+            {!money && <p className="hint">Payment options and charges can only be changed by the owner.</p>}
             <p className="alert warn small">Confirm with your accountant which taxes and levies (e.g. VAT, NHIL, GETFund, COVID-19 levy) apply to your business before setting them. Defaults are zero.</p>
-            <div className="grid-2">
-              <F id="o-sc2" label="Service charge (%)"><input id="o-sc2" name="serviceChargePct" className="input" inputMode="decimal" defaultValue={o.serviceChargeBps / 100} /></F>
-              <F id="o-tax" label="Taxes & levies (%)" hint="Applied to food after discount + service charge."><input id="o-tax" name="taxPct" className="input" inputMode="decimal" defaultValue={o.taxBps / 100} /></F>
-              <F id="o-tl" label="Label shown to customers"><input id="o-tl" name="taxLabel" className="input" defaultValue={o.taxLabel} /></F>
-              <F id="o-min" label="Minimum order (GH₵)"><input id="o-min" name="minOrder" className="input" inputMode="decimal" defaultValue={pesewasToCedisString(o.minOrderPesewas)} /></F>
+            <div className="grid-2 form-aligned two">
+              <F id="o-sc2" label="Service charge (%)"><input id="o-sc2" name="serviceChargePct" className="input" disabled={!money} inputMode="decimal" defaultValue={o.serviceChargeBps / 100} /></F>
+              <F id="o-tax" label="Taxes & levies (%)" hint="Applied to food after discount + service charge."><input id="o-tax" name="taxPct" className="input" disabled={!money} inputMode="decimal" defaultValue={o.taxBps / 100} /></F>
+              <F id="o-tl" label="Label shown to customers"><input id="o-tl" name="taxLabel" className="input" disabled={!money} defaultValue={o.taxLabel} /></F>
+              <F id="o-min" label="Minimum order (GH₵)"><input id="o-min" name="minOrder" className="input" disabled={!money} inputMode="decimal" defaultValue={pesewasToCedisString(o.minOrderPesewas)} /></F>
             </div>
           </section>
           <section className="panel stack">
             <h2 style={{ fontSize: '1.15rem' }}>Policies</h2>
-            <Check name="allowCustomerCancelBeforeKitchen" label="Let customers cancel online before the kitchen starts" checked={o.allowCustomerCancelBeforeKitchen} hint="Paid orders cancelled this way are refunded in full automatically." />
-            <F id="o-cp" label="Cancellation policy"><textarea id="o-cp" name="cancellationPolicy" className="textarea" defaultValue={o.cancellationPolicy} maxLength={2000} /></F>
-            <F id="o-rp" label="Refund policy"><textarea id="o-rp" name="refundPolicy" className="textarea" defaultValue={o.refundPolicy} maxLength={2000} /></F>
+            <div className="set-group">
+              <p className="set-label">Cancellations</p>
+              <Check card name="allowCustomerCancelBeforeKitchen" label="Let customers cancel online before the kitchen starts" checked={o.allowCustomerCancelBeforeKitchen} hint="Paid orders cancelled this way are refunded in full automatically." />
+            </div>
+            <div className="set-group">
+              <p className="set-label">What customers read</p>
+              <F id="o-cp" label="Cancellation policy"><textarea id="o-cp" name="cancellationPolicy" className="textarea" defaultValue={o.cancellationPolicy} maxLength={2000} /></F>
+              <F id="o-rp" label="Refund policy"><textarea id="o-rp" name="refundPolicy" className="textarea" defaultValue={o.refundPolicy} maxLength={2000} /></F>
+            </div>
           </section>
           <SubmitButton className="btn primary lg">Save ordering settings</SubmitButton>
         </ActionForm>
@@ -154,22 +197,28 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <div className="two-col">
           <ActionForm action={A.hoursAction} className="panel stack" key="hours">
             <h2 style={{ fontSize: '1.15rem' }}>Weekly opening hours ({r.timezone})</h2>
-            <p className="hint">Up to two periods per day (e.g. lunch and dinner). Leave blank for closed.</p>
-            {DAYS.map((name, day) => {
-              const list = sched.hours.filter((h) => h.weekday === day);
-              return (
-                <div key={day} className="row" style={{ alignItems: 'end' }}>
-                  <strong style={{ width: 110 }}>{name}</strong>
-                  {[0, 1].map((k) => (
-                    <span key={k} className="row" style={{ gap: 4 }}>
-                      <input type="time" name={`o-${day}-${k}`} className="input" style={{ width: 120 }} defaultValue={list[k]?.opensAt ?? ''} aria-label={`${name} period ${k + 1} opens`} />
-                      <span>–</span>
-                      <input type="time" name={`c-${day}-${k}`} className="input" style={{ width: 120 }} defaultValue={list[k]?.closesAt ?? ''} aria-label={`${name} period ${k + 1} closes`} />
-                    </span>
-                  ))}
-                </div>
-              );
-            })}
+            <p className="hint">One opening time and one closing time per day. Leave blank for closed.</p>
+            <div className="hours-grid">
+              <div className="hours-head" aria-hidden="true">
+                <span>Day</span>
+                <span>Opens – Closes</span>
+              </div>
+              {DAYS.map((name, day) => {
+                const list = sched.hours.filter((h) => h.weekday === day);
+                return (
+                  <div key={day} className="hours-row">
+                    <strong className="hours-day">{name}</strong>
+                    {[0].map((k) => (
+                      <span key={k} className="hours-slot">
+                        <input type="time" name={`o-${day}-${k}`} className="input" defaultValue={list[k]?.opensAt ?? ''} aria-label={`${name} period ${k + 1} opens`} />
+                        <span aria-hidden="true">–</span>
+                        <input type="time" name={`c-${day}-${k}`} className="input" defaultValue={list[k]?.closesAt ?? ''} aria-label={`${name} period ${k + 1} closes`} />
+                      </span>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
             <SubmitButton>Save hours</SubmitButton>
           </ActionForm>
           <section className="panel stack">
@@ -189,10 +238,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             )}
             <ActionForm action={A.closureAction} className="stack" resetOnSuccess>
               <input type="hidden" name="tz" value={r.timezone} />
-              <F id="cl-s" label={`Starts (${r.timezone})`}><input id="cl-s" name="startsAt" type="datetime-local" className="input" required /></F>
-              <F id="cl-e" label="Ends"><input id="cl-e" name="endsAt" type="datetime-local" className="input" required /></F>
-              <F id="cl-sc" label="Affects"><select id="cl-sc" name="scope" className="select"><option value="all">All ordering</option><option value="delivery">Delivery only</option><option value="pickup">Pickup only</option></select></F>
-              <F id="cl-r" label="Reason (shown to customers)"><input id="cl-r" name="reason" className="input" required maxLength={120} placeholder="e.g. Public holiday" /></F>
+              <div className="form-aligned two top">
+                <F id="cl-s" label={`Starts (${r.timezone})`}><input id="cl-s" name="startsAt" type="datetime-local" className="input" required /></F>
+                <F id="cl-e" label="Ends"><input id="cl-e" name="endsAt" type="datetime-local" className="input" required /></F>
+                <F id="cl-sc" label="Affects"><select id="cl-sc" name="scope" className="select"><option value="all">All ordering</option><option value="delivery">Delivery only</option><option value="pickup">Pickup only</option></select></F>
+                <F id="cl-r" label="Reason (shown to customers)"><input id="cl-r" name="reason" className="input" required maxLength={120} placeholder="e.g. Public holiday" /></F>
+              </div>
               <SubmitButton className="btn">Add closure</SubmitButton>
             </ActionForm>
           </section>
@@ -200,14 +251,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       )}
 
       {tab === 'zones' && (
-        <div className="two-col">
+        <div className="two-col zones-layout">
           <section className="panel">
             <h2 style={{ fontSize: '1.15rem' }}>Zones</h2>
-            <p className="hint">Each zone is a circle around a point. A customer’s GPS location gets the smallest zone that contains it. Use rings from the restaurant (e.g. 0–3 km, 3–7 km) for distance-based fees.</p>
+            <p className="hint">Each zone is a circle around a point. A customer’s GPS location gets the smallest zone that contains it. The delivery fee is the base fee plus the extra-per-km rate × the customer’s distance from the restaurant (set the restaurant’s latitude/longitude above for accurate distances), rounded to GH₵0.50 and capped at the maximum. Leave extra-per-km at 0 for a flat fee.</p>
             {zones.length === 0 ? <p className="muted">No zones yet. Customers can’t order delivery until you add one.</p> : zones.map((z) => (
               <details key={z.id} className="panel tight" style={{ marginBottom: 10 }}>
-                <summary>
-                  <strong>{z.name}</strong> {formatGHS(z.feePesewas)}, {(z.radiusM / 1000).toFixed(1)} km {!z.isActive && <Badge tone="neutral">Off</Badge>} {z.isDemo && <Badge tone="warn">Demo</Badge>}
+                <summary className="zone-sum">
+                  <strong>{z.name}</strong>
+                  <span className="zone-meta">{z.perKmPesewas ? `${formatGHS(z.feePesewas)} + ${formatGHS(z.perKmPesewas)}/km` : formatGHS(z.feePesewas)} · {(z.radiusM / 1000).toFixed(1)} km</span>
+                  <span className="zone-badges">{!z.isActive && <Badge tone="neutral">Off</Badge>} {z.isDemo && <Badge tone="warn">Demo</Badge>}</span>
                 </summary>
                 <ZoneForm z={z} />
               </details>
@@ -221,30 +274,56 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       )}
 
       {tab === 'delivery' && (
-        <ActionForm action={A.deliveryAction} className="stack" key="delivery">
+        <ActionForm action={A.deliveryAction} className="stack settings-narrow" key="delivery">
           <section className="panel stack">
             <h2 style={{ fontSize: '1.15rem' }}>Riders and tracking</h2>
-            <div className="grid-2">
-              <F id="d-on" label="Rider counts as online if active within (seconds)"><input id="d-on" name="riderOnlineWindowSeconds" type="number" min={30} max={900} className="input" defaultValue={d.riderOnlineWindowSeconds} /></F>
-              <F id="d-st" label="Location is “stale” after (seconds)"><input id="d-st" name="locationStaleSeconds" type="number" min={30} max={1800} className="input" defaultValue={d.locationStaleSeconds} /></F>
-              <F id="d-int" label="Location update interval (seconds)"><input id="d-int" name="locationIntervalSeconds" type="number" min={5} max={300} className="input" defaultValue={d.locationIntervalSeconds} /></F>
-              <F id="d-ret" label="Keep location history for (days)" hint="Older rider locations are deleted automatically."><input id="d-ret" name="locationRetentionDays" type="number" min={1} max={365} className="input" defaultValue={d.locationRetentionDays} /></F>
-              <F id="d-pin" label="Wrong PIN attempts before lock"><input id="d-pin" name="pinMaxAttempts" type="number" min={3} max={10} className="input" defaultValue={d.pinMaxAttempts} /></F>
-              <F id="d-fee" label="Default rider fee per delivery (GH₵)"><input id="d-fee" name="defaultRiderFee" className="input" inputMode="decimal" defaultValue={pesewasToCedisString(d.defaultRiderFeePesewas)} /></F>
+            <div className="set-group">
+              <p className="set-label">Rider status</p>
+              <div className="form-aligned two">
+                <F id="d-on" label="Rider counts as online if active within (seconds)"><input id="d-on" name="riderOnlineWindowSeconds" type="number" min={30} max={900} className="input" defaultValue={d.riderOnlineWindowSeconds} /></F>
+                <F id="d-st" label="Location is “stale” after (seconds)"><input id="d-st" name="locationStaleSeconds" type="number" min={30} max={1800} className="input" defaultValue={d.locationStaleSeconds} /></F>
+              </div>
             </div>
-            <Check name="allowManualZoneSelection" label="Let customers pick their area instead of sharing GPS" checked={d.allowManualZoneSelection} hint="These orders are marked “location not verified” for dispatch." />
+            <div className="set-group">
+              <p className="set-label">Location tracking</p>
+              <div className="form-aligned two">
+                <F id="d-int" label="Location update interval (seconds)"><input id="d-int" name="locationIntervalSeconds" type="number" min={5} max={300} className="input" defaultValue={d.locationIntervalSeconds} /></F>
+                <F id="d-ret" label="Keep location history for (days)" hint="Older rider locations are deleted automatically."><input id="d-ret" name="locationRetentionDays" type="number" min={1} max={365} className="input" defaultValue={d.locationRetentionDays} /></F>
+              </div>
+            </div>
+            <div className="set-group">
+              <p className="set-label">Security and pay</p>
+              <div className="form-aligned two">
+                <F id="d-pin" label="Wrong PIN attempts before lock"><input id="d-pin" name="pinMaxAttempts" type="number" min={3} max={10} className="input" defaultValue={d.pinMaxAttempts} /></F>
+                <F id="d-fee" label="Default rider fee per delivery (GH₵)"><input id="d-fee" name="defaultRiderFee" className="input" inputMode="decimal" defaultValue={pesewasToCedisString(d.defaultRiderFeePesewas)} /></F>
+              </div>
+            </div>
+            <div className="set-group">
+              <p className="set-label">Customer location</p>
+              <Check card name="allowManualZoneSelection" label="Let customers pick their area instead of sharing GPS" checked={d.allowManualZoneSelection} hint="These orders are marked “location not verified” for dispatch." />
+            </div>
           </section>
           <section className="panel stack">
             <h2 style={{ fontSize: '1.15rem' }}>Inventory</h2>
-            <Check name="autoDeductOnPrep" label="Deduct recipe ingredients when the kitchen starts an order" checked={s.inventory.autoDeductOnPrep} hint="Only dishes with a recipe are affected. Stock is not restored automatically if an order is cancelled after preparation starts." />
+            <div className="set-group">
+              <Check card name="autoDeductOnPrep" label="Deduct recipe ingredients when the kitchen starts an order" checked={s.inventory.autoDeductOnPrep} hint="Only dishes with a recipe are affected. Stock is not restored automatically if an order is cancelled after preparation starts." />
+            </div>
           </section>
           <section className="panel stack">
             <h2 style={{ fontSize: '1.15rem' }}>Customer notifications</h2>
-            <p className="small">
-              Tracking-page updates are always on. SMS provider: <strong>{e.NOTIFY_SMS_PROVIDER}</strong>, email provider: <strong>{e.NOTIFY_EMAIL_PROVIDER}</strong> (set in the server environment; “log” means messages are only written to the server log).
+            <p className="set-status">
+              <strong>Providers</strong>
+              <span>SMS: <strong>{e.NOTIFY_SMS_PROVIDER}</strong></span>
+              <span>Email: <strong>{e.NOTIFY_EMAIL_PROVIDER}</strong></span>
+              <span className="hint">Set in the server environment; “log” means messages are only written to the server log. Tracking-page updates are always on.</span>
             </p>
-            <Check name="smsEnabled" label="Send SMS for key updates (payment confirmed, ready, on the way, cancelled)" checked={s.notifications.smsEnabled} />
-            <Check name="emailEnabled" label="Send email receipts and updates" checked={s.notifications.emailEnabled} />
+            <div className="set-group">
+              <p className="set-label">Send customers</p>
+              <div className="set-rows">
+                <Check card name="smsEnabled" label="Send SMS for key updates" checked={s.notifications.smsEnabled} hint="Payment confirmed, ready, on the way, cancelled." />
+                <Check card name="emailEnabled" label="Send email receipts and updates" checked={s.notifications.emailEnabled} />
+              </div>
+            </div>
           </section>
           <SubmitButton className="btn primary lg">Save</SubmitButton>
         </ActionForm>
@@ -257,19 +336,41 @@ function ZoneForm({ z, defaults }: { z: Awaited<ReturnType<typeof listZones>>[nu
   return (
     <ActionForm action={A.zoneAction} className="stack" resetOnSuccess={!z}>
       {z && <input type="hidden" name="id" value={z.id} />}
-      <div className="grid-2">
-        <F id={`z-n-${z?.id ?? 'new'}`} label="Name"><input id={`z-n-${z?.id ?? 'new'}`} name="name" className="input" defaultValue={z?.name} required /></F>
-        <F id={`z-r-${z?.id ?? 'new'}`} label="Radius (km)"><input id={`z-r-${z?.id ?? 'new'}`} name="radiusKm" className="input" inputMode="decimal" defaultValue={z ? z.radiusM / 1000 : ''} required /></F>
-        <F id={`z-la-${z?.id ?? 'new'}`} label="Centre latitude"><input id={`z-la-${z?.id ?? 'new'}`} name="centerLat" className="input" inputMode="decimal" defaultValue={z?.centerLat ?? defaults?.lat ?? ''} required /></F>
-        <F id={`z-ln-${z?.id ?? 'new'}`} label="Centre longitude"><input id={`z-ln-${z?.id ?? 'new'}`} name="centerLng" className="input" inputMode="decimal" defaultValue={z?.centerLng ?? defaults?.lng ?? ''} required /></F>
-        <F id={`z-f-${z?.id ?? 'new'}`} label="Delivery fee (GH₵)"><input id={`z-f-${z?.id ?? 'new'}`} name="fee" className="input" inputMode="decimal" defaultValue={z ? pesewasToCedisString(z.feePesewas) : ''} required /></F>
-        <F id={`z-m-${z?.id ?? 'new'}`} label="Minimum order (GH₵)"><input id={`z-m-${z?.id ?? 'new'}`} name="minOrder" className="input" inputMode="decimal" defaultValue={z ? pesewasToCedisString(z.minOrderPesewas) : '0'} /></F>
-        <F id={`z-e1-${z?.id ?? 'new'}`} label="Typical delivery time from (min)"><input id={`z-e1-${z?.id ?? 'new'}`} name="etaMin" type="number" className="input" defaultValue={z?.etaMinMinutes ?? ''} /></F>
-        <F id={`z-e2-${z?.id ?? 'new'}`} label="to (min)"><input id={`z-e2-${z?.id ?? 'new'}`} name="etaMax" type="number" className="input" defaultValue={z?.etaMaxMinutes ?? ''} /></F>
+      <div className="zone-groups">
+        <div className="set-group">
+          <p className="set-label">Zone</p>
+          <div className="form-aligned two">
+            <F id={`z-n-${z?.id ?? 'new'}`} label="Name"><input id={`z-n-${z?.id ?? 'new'}`} name="name" className="input" defaultValue={z?.name} required /></F>
+            <F id={`z-r-${z?.id ?? 'new'}`} label="Radius (km)"><input id={`z-r-${z?.id ?? 'new'}`} name="radiusKm" className="input" inputMode="decimal" defaultValue={z ? z.radiusM / 1000 : ''} required /></F>
+          </div>
+        </div>
+        <div className="set-group">
+          <p className="set-label">Centre point</p>
+          <div className="form-aligned two">
+            <F id={`z-la-${z?.id ?? 'new'}`} label="Latitude"><input id={`z-la-${z?.id ?? 'new'}`} name="centerLat" className="input" inputMode="decimal" defaultValue={z?.centerLat ?? defaults?.lat ?? ''} required /></F>
+            <F id={`z-ln-${z?.id ?? 'new'}`} label="Longitude"><input id={`z-ln-${z?.id ?? 'new'}`} name="centerLng" className="input" inputMode="decimal" defaultValue={z?.centerLng ?? defaults?.lng ?? ''} required /></F>
+          </div>
+        </div>
+        <div className="set-group">
+          <p className="set-label">Charges</p>
+          <div className="form-aligned two">
+            <F id={`z-f-${z?.id ?? 'new'}`} label="Base delivery fee (GH₵)"><input id={`z-f-${z?.id ?? 'new'}`} name="fee" className="input" inputMode="decimal" defaultValue={z ? pesewasToCedisString(z.feePesewas) : ''} required /></F>
+            <F id={`z-k-${z?.id ?? 'new'}`} label="Extra per km (GH₵)"><input id={`z-k-${z?.id ?? 'new'}`} name="perKm" className="input" inputMode="decimal" defaultValue={z ? pesewasToCedisString(z.perKmPesewas) : '0'} /></F>
+            <F id={`z-x-${z?.id ?? 'new'}`} label="Maximum fee (GH₵, optional)"><input id={`z-x-${z?.id ?? 'new'}`} name="maxFee" className="input" inputMode="decimal" defaultValue={z?.maxFeePesewas != null ? pesewasToCedisString(z.maxFeePesewas) : ''} /></F>
+            <F id={`z-m-${z?.id ?? 'new'}`} label="Minimum order (GH₵)"><input id={`z-m-${z?.id ?? 'new'}`} name="minOrder" className="input" inputMode="decimal" defaultValue={z ? pesewasToCedisString(z.minOrderPesewas) : '0'} /></F>
+          </div>
+        </div>
+        <div className="set-group">
+          <p className="set-label">Typical delivery time</p>
+          <div className="form-aligned two">
+            <F id={`z-e1-${z?.id ?? 'new'}`} label="From (min)"><input id={`z-e1-${z?.id ?? 'new'}`} name="etaMin" type="number" className="input" defaultValue={z?.etaMinMinutes ?? ''} /></F>
+            <F id={`z-e2-${z?.id ?? 'new'}`} label="To (min)"><input id={`z-e2-${z?.id ?? 'new'}`} name="etaMax" type="number" className="input" defaultValue={z?.etaMaxMinutes ?? ''} /></F>
+          </div>
+        </div>
       </div>
       <input type="hidden" name="sortOrder" value={z?.sortOrder ?? 0} />
-      <label className="check"><input type="checkbox" name="isActive" defaultChecked={z?.isActive ?? true} /> Active</label>
-      <SubmitButton className="btn">{z ? 'Save zone' : 'Add zone'}</SubmitButton>
+      <label className="check check-card"><input type="checkbox" name="isActive" defaultChecked={z?.isActive ?? true} /><span>Active<span className="hint" style={{ display: 'block' }}>Customers can only choose active zones.</span></span></label>
+      <SubmitButton className="btn primary">{z ? 'Save zone' : 'Add zone'}</SubmitButton>
     </ActionForm>
   );
 }

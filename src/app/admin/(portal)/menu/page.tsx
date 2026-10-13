@@ -18,7 +18,12 @@ export default async function MenuAdmin({ searchParams }: { searchParams: Promis
   return (
     <>
       <div className="admin-top">
-        <h1>Menu</h1>
+        <div>
+          <h1>Menu</h1>
+          <p className="muted" style={{ margin: 0 }}>
+            {items.filter((i) => !i.isArchived).length} dishes in {categories.length} categories
+          </p>
+        </div>
         <div className="row">
           <Link className="btn ghost sm" href={sp.archived === '1' ? '/admin/menu' : '/admin/menu?archived=1'}>
             {sp.archived === '1' ? 'Hide archived' : 'Show archived'}
@@ -29,12 +34,12 @@ export default async function MenuAdmin({ searchParams }: { searchParams: Promis
         </div>
       </div>
       {demoCount > 0 && (
-        <p className="alert warn">
+        <p className="alert warn" style={{ marginBottom: 28 }}>
           {demoCount} item(s) are demo placeholders. Edit them with real details (saving removes the demo flag) or archive them before launch.
         </p>
       )}
-      <div className="two-col">
-        <div className="stack" style={{ ['--stack' as string]: '18px' }}>
+      <div className="two-col menu-layout">
+        <div className="menu-cats">
           {categories.length === 0 && (
             <div className="empty panel">
               <h3>Start with a category</h3>
@@ -44,64 +49,65 @@ export default async function MenuAdmin({ searchParams }: { searchParams: Promis
           {categories.map((c) => {
             const list = items.filter((i) => i.categoryId === c.id);
             return (
-              <section key={c.id} className="panel tight">
-                <div className="row between">
-                  <h2 style={{ fontSize: '1.15rem', margin: 0 }}>
-                    {c.name} {!c.isActive && <Badge tone="neutral">Hidden</Badge>} {c.isDemo && <Badge tone="warn">Demo</Badge>}
+              <section key={c.id} className="panel menu-cat">
+                <div className="menu-cat-head">
+                  <h2>
+                    {c.name} <span className="dsp-count">{list.length}</span> {!c.isActive && <Badge tone="neutral">Hidden</Badge>} {c.isDemo && <Badge tone="warn">Demo</Badge>}
                   </h2>
                   {list.length === 0 && <ActionButton className="btn sm ghost" action={deleteCategoryAction.bind(null, c.id)} confirm="Delete this empty category?">Delete</ActionButton>}
                 </div>
                 {list.length === 0 ? (
-                  <p className="muted small">No dishes yet.</p>
+                  <p className="dsp-empty">No dishes yet.</p>
                 ) : (
-                  <div className="table-wrap" style={{ marginTop: 10 }}>
-                    <table className="data">
-                      <thead>
-                        <tr>
-                          <th>Dish</th>
-                          <th className="num">Price</th>
-                          <th>Status</th>
-                          <th />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {list.map((i) => (
-                          <tr key={i.id}>
-                            <td>
-                              <Link href={`/admin/menu/${i.id}`} style={{ fontWeight: 700 }}>
-                                {i.name}
-                              </Link>
-                              <div className="small muted">
-                                {i.variants.length ? `${i.variants.length} sizes` : 'Single price'}
-                                {i.modifierGroups.length ? `, ${i.modifierGroups.length} option groups` : ''}, {i.prepMinutes} min prep
-                                {!i.imageUrl ? ', no photo' : ''}
-                              </div>
-                            </td>
-                            <td className="num">{i.variants.length ? `from ${formatGHS(Math.min(...i.variants.map((v) => v.pricePesewas)))}` : formatGHS(i.basePricePesewas)}</td>
-                            <td>
-                              {i.isArchived ? <Badge tone="neutral">Archived</Badge> : i.isAvailable ? <Badge tone="ok">Available</Badge> : <Badge tone="danger">Sold out</Badge>}
-                              {i.isFeatured && !i.isArchived && <> <Badge tone="info">Featured</Badge></>}
-                              {i.isDemo && <> <Badge tone="warn">Demo</Badge></>}
-                            </td>
-                            <td className="nowrap">
-                              {!i.isArchived && <ActionButton className="btn sm" action={availabilityAction.bind(null, i.id, !i.isAvailable)}>{i.isAvailable ? 'Sold out' : 'Available'}</ActionButton>}{' '}
-                              <ActionButton className="btn sm ghost" action={archiveAction.bind(null, i.id, !i.isArchived)} confirm={i.isArchived ? undefined : `Archive ${i.name}? It disappears from the menu but stays in order history.`}>
-                                {i.isArchived ? 'Restore' : 'Archive'}
-                              </ActionButton>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="mdish-grid">
+                    {list.map((i) => (
+                      <article key={i.id} className={`mdish${i.isArchived ? ' archived' : ''}`}>
+                        <Link href={`/admin/menu/${i.id}`} className="mdish-img" aria-label={`Edit ${i.name}`}>
+                          {i.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={i.imageUrl} alt="" loading="lazy" />
+                          ) : (
+                            <span className="mdish-ph" aria-hidden="true">
+                              {i.name.trim().charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </Link>
+                        <div className="mdish-info">
+                          <Link href={`/admin/menu/${i.id}`} className="mdish-name">
+                            {i.name}
+                          </Link>
+                          <ul className="mdish-meta">
+                            <li>{i.variants.length ? `${i.variants.length} sizes` : 'Single price'}</li>
+                            {i.modifierGroups.length > 0 && <li>{i.modifierGroups.length} option {i.modifierGroups.length === 1 ? 'group' : 'groups'}</li>}
+                            <li>{i.prepMinutes} min prep</li>
+                            {!i.imageUrl && <li className="warn">No photo</li>}
+                          </ul>
+                        </div>
+                        <div className="mdish-badges">
+                          {i.isArchived ? <Badge tone="neutral">Archived</Badge> : i.isAvailable ? <Badge tone="ok">Available</Badge> : <Badge tone="danger">Sold out</Badge>}
+                          {i.isDemo && <Badge tone="warn">Demo</Badge>}
+                        </div>
+                        <span className="mdish-price">{i.variants.length ? formatGHS(Math.min(...i.variants.map((v) => v.pricePesewas))) : formatGHS(i.basePricePesewas)}</span>
+                        <div className="mdish-actions">
+                          {!i.isArchived && <ActionButton className="btn sm" action={availabilityAction.bind(null, i.id, !i.isAvailable)}>{i.isAvailable ? 'Sold out' : 'Available'}</ActionButton>}
+                          <ActionButton className="btn sm ghost" action={archiveAction.bind(null, i.id, !i.isArchived)} confirm={i.isArchived ? undefined : `Archive ${i.name}? It disappears from the menu but stays in order history.`}>
+                            {i.isArchived ? 'Restore' : 'Archive'}
+                          </ActionButton>
+                          <Link href={`/admin/menu/${i.id}`} className="btn sm primary">
+                            Edit
+                          </Link>
+                        </div>
+                      </article>
+                    ))}
                   </div>
                 )}
               </section>
             );
           })}
         </div>
-        <aside className="stack" style={{ ['--stack' as string]: '18px' }}>
-          <section className="panel">
-            <h2 style={{ fontSize: '1.15rem' }}>Add a category</h2>
+        <aside className="menu-side">
+          <section className="panel menu-side-card">
+            <h2>Add a category</h2>
             <ActionForm action={categoryAction} className="stack" resetOnSuccess>
               <div className="field">
                 <label htmlFor="cname">Name</label>
@@ -115,17 +121,21 @@ export default async function MenuAdmin({ searchParams }: { searchParams: Promis
                 <label htmlFor="csort">Position</label>
                 <input id="csort" name="sortOrder" type="number" min={0} className="input" defaultValue={categories.length} />
               </div>
-              <label className="check">
-                <input type="checkbox" name="isActive" defaultChecked /> Visible on the menu
+              <label className="check check-card">
+                <input type="checkbox" name="isActive" defaultChecked />
+                <span>
+                  Visible on the menu
+                  <span className="hint" style={{ display: 'block' }}>Untick to hide the whole category.</span>
+                </span>
               </label>
               <SubmitButton>Add category</SubmitButton>
             </ActionForm>
           </section>
           {categories.length > 0 && (
-            <section className="panel">
-              <h2 style={{ fontSize: '1.15rem' }}>Edit categories</h2>
+            <section className="panel menu-side-card">
+              <h2>Edit categories</h2>
               {categories.map((c) => (
-                <details key={c.id} style={{ marginBottom: 8 }}>
+                <details key={c.id} className="menu-edit">
                   <summary>{c.name}</summary>
                   <ActionForm action={categoryAction} className="stack">
                     <input type="hidden" name="id" value={c.id} />

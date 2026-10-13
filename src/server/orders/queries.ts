@@ -7,7 +7,7 @@ import { normalizePhone } from '../auth/sessions';
 import { enforceRateLimit } from '../auth/rate-limit';
 import { getAllSettings } from '../settings';
 import { customerStage, customerTimeline, type FulfillmentStatus } from '@/lib/states';
-import { deliveryPin, customerVisibleLocation } from '../fulfillment/inhouse';
+import { deliveryPin, customerVisibleLocation, listRiders } from '../fulfillment/inhouse';
 import { inAppNotificationsForOrder } from '../notifications';
 import type { OrderRow, FulfillmentRow } from './core';
 
@@ -255,14 +255,15 @@ export async function kitchenQueue(user: SessionUser | null, db: Db = sql) {
       customerNotes: string | null;
       version: number;
       riderAssigned: boolean;
+      riderName: string | null;
       paymentStatus: string;
     }[]
   >`
     select o.id, o.order_number, o.kitchen_status, o.fulfillment_type, f.status as fulfillment_status,
            split_part(o.customer_name, ' ', 1) as customer_first_name, o.promised_at, o.is_asap, o.placed_at, o.accepted_at,
            o.prep_started_at, o.ready_at, o.customer_notes, o.version, (f.rider_user_id is not null or f.provider_name is not null) as rider_assigned,
-           o.payment_status
-    from orders o join fulfillments f on f.order_id = o.id
+           ru.full_name as rider_name, o.payment_status
+    from orders o join fulfillments f on f.order_id = o.id left join users ru on ru.id = f.rider_user_id
     where o.kitchen_status in ('new','accepted','preparing','ready')
        or (o.kitchen_status = 'handed_off' and o.updated_at > now() - interval '30 minutes')
     order by o.promised_at, o.placed_at`;
@@ -281,7 +282,16 @@ export async function kitchenQueue(user: SessionUser | null, db: Db = sql) {
   }
   const unavailable = await db<{ id: number; name: string; unavailableReason: string | null }[]>`
     select id, name, unavailable_reason from menu_items where not is_available and not is_archived order by name`;
-  return { serverTime: new Date().toISOString(), orders: orders.map((o) => ({ ...o, items: byOrder.get(o.id) ?? [] })), unavailable };
+  const alerts = await db<{ id: string; orderNumber: string | null; kind: string; message: string; raisedAt: Date; raisedByName: string | null }[]>`
+    select e.id, o.order_number, e.kind, e.message, e.raised_at, u.full_name as raised_by_name
+    from operational_exceptions e left join orders o on o.id = e.order_id left join users u on u.id = e.raised_by
+    where e.resolved_at is null and (e.order_id is null or o.needs_attention) and e.kind in ('kitchen_issue','kitchen_delay') order by e.raised_at desc limit 20`;
+  // Riders the kitchen can choose from (names and availability only; no phone numbers or locations).
+  const canAssign = hasPerm(user, 'dispatch.assign') || hasPerm(user, 'dispatch.manage');
+  const riders = canAssign
+    ? (await listRiders(db)).map((r) => ({ id: r.userId, name: r.fullName, online: r.online, active: r.activeDeliveries }))
+    : [];
+  return { serverTime: new Date().toISOString(), orders: orders.map((o) => ({ ...o, items: byOrder.get(o.id) ?? [] })), unavailable, alerts, riders, canAssign };
 }
 
 export type KitchenQueue = Awaited<ReturnType<typeof kitchenQueue>>;

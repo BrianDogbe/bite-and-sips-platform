@@ -70,9 +70,9 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
   const late = (o: DispatchRow) => ['unassigned', 'assigned', 'accepted', 'at_restaurant', 'requested'].includes(o.fulfillmentStatus) && new Date(o.promisedAt).getTime() < now;
 
   return (
-    <div className="two-col" style={{ gridTemplateColumns: 'minmax(0,1.3fr) minmax(320px,1fr)' }}>
-      <div className="stack" style={{ ['--stack' as string]: '16px' }}>
-        <div className="row between">
+    <div className="dsp-layout">
+      <div className="dsp-main">
+        <div className="dsp-toolbar">
           <span className={`live-pill ${status === 'live' && !stale ? '' : 'stale'}`} role="status">
             <span className="dot" /> {status === 'live' && !stale ? 'Live' : `Last updated ${lastSuccess ? ago(new Date(lastSuccess), now) : 'never'}`}
           </span>
@@ -82,14 +82,12 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
         </div>
         {error && <p className="alert warn">{error}</p>}
         {groups.map((g) => (
-          <section key={g.title} className="panel tight">
-            <h2 style={{ fontSize: '1.05rem' }}>
-              {g.title} <span className="muted">({g.list.length})</span>
+          <section key={g.title} className="panel dsp-group">
+            <h2 className="dsp-head">
+              {g.title} <span className="dsp-count">{g.list.length}</span>
             </h2>
             {g.list.length === 0 ? (
-              <p className="muted small" style={{ margin: 0 }}>
-                None.
-              </p>
+              <p className="dsp-empty">None.</p>
             ) : (
               <div className="table-wrap">
                 <table className="data">
@@ -121,10 +119,12 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
             )}
           </section>
         ))}
-        <section className="panel tight">
-          <h2 style={{ fontSize: '1.05rem' }}>Riders</h2>
+        <section className="panel dsp-group">
+          <h2 className="dsp-head">
+            Riders <span className="dsp-count">{data?.riders.length ?? 0}</span>
+          </h2>
           {!data?.riders.length ? (
-            <p className="muted small">
+            <p className="dsp-empty">
               No riders yet. Add staff with the Rider role in <Link href="/admin/staff">Staff</Link>.
             </p>
           ) : (
@@ -160,9 +160,9 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
         </section>
       </div>
 
-      <aside style={{ position: 'sticky', top: 16 }}>
+      <aside className="dsp-side">
         {!sel ? (
-          <div className="panel empty">
+          <div className="panel empty dsp-select">
             <h3>Select a delivery</h3>
             <p>Choose an order on the left to assign a rider, book a partner or update its status.</p>
           </div>

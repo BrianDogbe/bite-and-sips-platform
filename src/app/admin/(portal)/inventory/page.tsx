@@ -18,22 +18,28 @@ export default async function InventoryPage() {
   return (
     <>
       <div className="admin-top">
-        <h1>Inventory</h1>
+        <div>
+          <h1>Inventory</h1>
+          <p className="muted" style={{ margin: 0 }}>{stock.length} stock {stock.length === 1 ? 'item' : 'items'} tracked</p>
+        </div>
         <Badge tone={inv.autoDeductOnPrep ? 'ok' : 'neutral'}>Automatic recipe deduction {inv.autoDeductOnPrep ? 'on' : 'off'}</Badge>
       </div>
-      <p className="alert info small">
+      <p className="alert info small" style={{ marginBottom: 28 }}>
         Quantities shown are <strong>recorded</strong> amounts calculated from receipts, wastage, adjustments and (if enabled) recipe deductions. They drift from reality over time. Do a physical count regularly and record it as a “Count” to reconcile.
       </p>
-      <div className="two-col">
+      <div className="two-col zones-layout">
         <section className="panel">
+          <h2 className="dsp-head">
+            Stock <span className="dsp-count">{stock.length}</span>
+          </h2>
           {stock.length === 0 ? (
-            <div className="empty">
+            <div className="empty empty-box">
               <h3>No stock items yet</h3>
               <p>Add ingredients and supplies you want to track, like rice, oil, chicken or bottled drinks.</p>
             </div>
           ) : (
             <div className="table-wrap">
-              <table className="data">
+              <table className="data cases-table">
                 <thead>
                   <tr><th>Item</th><th className="num">Recorded qty</th><th className="num">Reorder at</th><th className="num">Unit cost</th><th>Last count</th></tr>
                 </thead>
@@ -52,28 +58,60 @@ export default async function InventoryPage() {
             </div>
           )}
         </section>
-        <aside className="stack" style={{ ['--stack' as string]: '18px' }}>
-          <section className="panel">
-            <h2 style={{ fontSize: '1.15rem' }}>Add stock item</h2>
+        <aside className="menu-side">
+          <section className="panel menu-side-card">
+            <h2>Add stock item</h2>
             <ActionForm action={createStockAction} className="stack" resetOnSuccess>
-              <div className="field"><label htmlFor="s-n">Name</label><input id="s-n" name="name" className="input" required maxLength={80} /></div>
-              <div className="grid-2">
-                <div className="field"><label htmlFor="s-u">Unit</label><select id="s-u" name="unit" className="select">{UNITS.map((u) => <option key={u}>{u}</option>)}</select></div>
-                <div className="field"><label htmlFor="s-r">Reorder level</label><input id="s-r" name="reorderLevel" type="number" step="0.001" min="0" className="input" defaultValue={0} /></div>
-                <div className="field"><label htmlFor="s-c">Cost per unit (GH₵)</label><input id="s-c" name="cost" className="input" inputMode="decimal" /></div>
-                <div className="field"><label htmlFor="s-s">Supplier</label><select id="s-s" name="supplierId" className="select"><option value="">None</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+              <div className="zone-groups">
+                <div className="set-group">
+                  <p className="set-label">Item</p>
+                  <div className="form-aligned two">
+                    <div className="field"><label htmlFor="s-n">Name</label><input id="s-n" name="name" className="input" required maxLength={80} /></div>
+                    <div className="field"><label htmlFor="s-u">Unit</label><select id="s-u" name="unit" className="select">{UNITS.map((u) => <option key={u}>{u}</option>)}</select></div>
+                  </div>
+                </div>
+                <div className="set-group">
+                  <p className="set-label">Stock and cost</p>
+                  <div className="form-aligned two">
+                    <div className="field"><label htmlFor="s-r">Reorder level</label><input id="s-r" name="reorderLevel" type="number" step="0.001" min="0" className="input" defaultValue={0} /></div>
+                    <div className="field"><label htmlFor="s-c">Cost per unit (GH₵)</label><input id="s-c" name="cost" className="input" inputMode="decimal" /></div>
+                    <div className="field"><label htmlFor="s-s">Supplier</label><select id="s-s" name="supplierId" className="select"><option value="">None</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+                  </div>
+                </div>
+                <label className="check check-card">
+                  <input type="checkbox" name="allowNegative" />
+                  <span>
+                    Allow recorded stock below zero
+                    <span className="hint" style={{ display: 'block' }}>Not recommended.</span>
+                  </span>
+                </label>
               </div>
-              <label className="check small"><input type="checkbox" name="allowNegative" /> Allow recorded stock below zero (not recommended)</label>
-              <SubmitButton>Add item</SubmitButton>
+              <SubmitButton className="btn primary">Add item</SubmitButton>
             </ActionForm>
           </section>
-          <section className="panel">
-            <h2 style={{ fontSize: '1.15rem' }}>Suppliers</h2>
-            <ul style={{ paddingLeft: 18 }}>{suppliers.map((s) => <li key={s.id}>{s.name}{s.phone ? ` (${s.phone})` : ''}</li>)}</ul>
+          <section className="panel menu-side-card">
+            <h2>Suppliers</h2>
+            {suppliers.length === 0 ? (
+              <p className="dsp-empty" style={{ marginBottom: 18 }}>No suppliers yet.</p>
+            ) : (
+              <ul className="sup-list">
+                {suppliers.map((s) => (
+                  <li key={s.id}>
+                    <strong>{s.name}</strong>
+                    {s.phone && <span className="muted small">{s.phone}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
             <ActionForm action={supplierAction} className="stack" resetOnSuccess>
-              <input name="name" className="input" placeholder="Supplier name" required aria-label="Supplier name" />
-              <input name="phone" className="input" placeholder="Phone" aria-label="Phone" />
-              <SubmitButton className="btn sm">Add supplier</SubmitButton>
+              <div className="set-group">
+                <p className="set-label">Add supplier</p>
+                <div className="form-aligned two">
+                  <div className="field"><label htmlFor="sp-n">Supplier name</label><input id="sp-n" name="name" className="input" required /></div>
+                  <div className="field"><label htmlFor="sp-p">Phone</label><input id="sp-p" name="phone" className="input" /></div>
+                </div>
+              </div>
+              <SubmitButton className="btn">Add supplier</SubmitButton>
             </ActionForm>
           </section>
         </aside>

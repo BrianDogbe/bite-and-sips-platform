@@ -1,11 +1,16 @@
 'use client';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import type { ActionResult } from '@/lib/action-result';
 
 /** One-click server action with optional confirmation and inline result. */
 export function ActionButton({ action, children, className = 'btn', confirm }: { action: () => Promise<ActionResult>; children: React.ReactNode; className?: string; confirm?: string }) {
   const [pending, start] = useTransition();
   const [res, setRes] = useState<ActionResult | null>(null);
+  useEffect(() => {
+    if (!res?.ok) return;
+    const t = setTimeout(() => setRes(null), 4000);
+    return () => clearTimeout(t);
+  }, [res]);
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 4 }}>
       <button

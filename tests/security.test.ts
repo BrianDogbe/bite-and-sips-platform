@@ -10,7 +10,7 @@ import { hashPassword, verifyPassword } from '@/server/auth/password';
 import { trackingView, lookupGuestOrder, listOrders, orderDetail, kitchenQueue, reorderLines } from '@/server/orders/queries';
 import { kitchenAction } from '@/server/orders/lifecycle';
 import { assignRider, riderAssignments } from '@/server/fulfillment/inhouse';
-import { financeSummary } from '@/server/reporting';
+import { financeSummary, addExpense, removeExpense, listExpenses } from '@/server/reporting';
 import { requestRefund } from '@/server/payments/service';
 import { setStaffRoles, createStaff } from '@/server/staff';
 import { saveItem } from '@/server/menu-admin';
@@ -66,32 +66,28 @@ test('customers cannot access other orders: tokens are unguessable; lookup needs
 test('staff endpoints enforce permissions on the server', async () => {
   const kitchen = await makeUser(['kitchen']);
   const rider = await makeUser(['rider']);
-  const support = await makeUser(['support']);
-  const dispatcher = await makeUser(['dispatcher']);
+  const other = await makeUser(['rider']);
   const manager = await makeUser(['manager']);
   const r = await createOrder(orderInput(fx, { paymentMethod: 'cash' }), { user: null, ip: 's2' });
   await assert.rejects(financeSummary(kitchen, new Date(0), new Date()), /permission/);
-  await assert.rejects(financeSummary(dispatcher, new Date(0), new Date()), /permission/);
+  await assert.rejects(financeSummary(other, new Date(0), new Date()), /permission/);
   await assert.rejects(listOrders(kitchen, {}), /permission/);
   await assert.rejects(listOrders(null, {}), /sign in/);
-  await assert.rejects(kitchenAction(support, r.orderId, 'start'), /permission/);
+  await assert.rejects(kitchenAction(other, r.orderId, 'start'), /permission/);
   await assert.rejects(kitchenAction(rider, r.orderId, 'start'), /permission/);
-  await assert.rejects(requestRefund(support, { orderId: r.orderId, amountPesewas: 1, reason: 'x', idempotencyKey: 'abcabcabc1' }), /permission/);
+  await assert.rejects(requestRefund(other, { orderId: r.orderId, amountPesewas: 1, reason: 'x', idempotencyKey: 'abcabcabc1' }), /permission/);
   await assert.rejects(saveItem(kitchen, {}), /permission/);
-  await assert.rejects(createStaff(dispatcher, { fullName: 'x', email: 'x@x.co', roles: ['owner'], password: 'long-enough-pw' }), /permission/);
+  await assert.rejects(createStaff(other, { fullName: 'x', email: 'x@x.co', roles: ['owner'], password: 'long-enough-pw' }), /permission/);
   await assert.rejects(createStaff(manager, { fullName: 'x', email: 'x@x.co', roles: ['owner'], password: 'long-enough-pw' }), /cannot grant the owner/);
-  await assert.rejects(assignRider(kitchen, { orderId: r.orderId, riderUserId: rider.id }), /permission/);
+  await assert.rejects(assignRider(other, { orderId: r.orderId, riderUserId: rider.id }), /permission/);
   const q = await kitchenQueue(kitchen);
   assert.equal(JSON.stringify(q).includes('customerPhone'), false, 'kitchen must not receive phone numbers');
   assert.equal(JSON.stringify(q).includes('totalPesewas'), false, 'kitchen must not receive totals');
-  // Support sees orders but phone is masked without customers.view? support HAS customers.view → visible
-  const d = await orderDetail(dispatcher, r.orderId);
-  assert.equal((d.payments as unknown[]).length, 0, 'dispatcher cannot see payment records');
   void manager;
 });
 
 test('riders only see their own assignments, and no address before accepting', async () => {
-  const dispatcher = await makeUser(['dispatcher']);
+  const dispatcher = await makeUser(['manager']);
   const r1 = await makeUser(['rider']);
   const r2 = await makeUser(['rider']);
   const o = await createOrder(orderInput(fx, { paymentMethod: 'cash', fulfillment: { type: 'delivery', addressLine: 'Secret St', lat: RESTAURANT.lat, lng: RESTAURANT.lng } }), { user: null, ip: 's3' });
@@ -106,7 +102,7 @@ test('removing a role revokes that user’s sessions; the last owner cannot be r
   const owner = await makeUser(['owner']);
   const m = await makeUser(['manager']);
   const s = await login(m.email!, 'correct horse battery', { ip: 'x' });
-  await setStaffRoles(owner, m.id, ['support']);
+  await setStaffRoles(owner, m.id, ['kitchen']);
   assert.equal(await getSessionUser(s.token), null);
   await assert.rejects(setStaffRoles(owner, owner.id, ['manager']), /at least one active owner|own roles/);
 });
@@ -142,4 +138,22 @@ test('no server secrets referenced from client-side code', () => {
     assert.equal(/PAYSTACK_SECRET|APP_SECRET|DATABASE_URL|CRON_SECRET|RESEND_API_KEY|HUBTEL_SMS_CLIENT_SECRET/.test(src), false, `${f} references a secret`);
     for (const m of src.matchAll(/^import\s+(?!type\b)[^'"]*from\s+['"](@\/server\/[^'"]+)['"]/gm)) assert.fail(`${f} imports server module ${m[1]} at runtime`);
   }
+});
+
+test('expenses: only the owner can record or remove them, and removal is audited', async () => {
+  const owner = await makeUser(['owner']);
+  const manager = await makeUser(['manager']);
+  const day = new Date().toISOString().slice(0, 10);
+  await assert.rejects(addExpense(manager, { incurredOn: day, category: 'Gas', amountPesewas: 5000 }), /permission/);
+  await addExpense(owner, { incurredOn: day, category: 'Gas', amountPesewas: 5000 });
+  const from = new Date(Date.now() - 2 * 86400000);
+  const to = new Date(Date.now() + 2 * 86400000);
+  const [e] = await listExpenses(owner, from, to);
+  assert.ok(e);
+  await assert.rejects(removeExpense(manager, e.id), /permission/);
+  await removeExpense(owner, e.id);
+  assert.equal((await listExpenses(owner, from, to)).length, 0);
+  const [a] = await sql<{ n: number }[]>`select count(*)::int as n from audit_events where action = 'finance.expense_removed'`;
+  assert.equal(a.n, 1);
+  await assert.rejects(removeExpense(owner, e.id), /not found/);
 });

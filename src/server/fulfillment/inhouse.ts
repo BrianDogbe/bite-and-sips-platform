@@ -4,7 +4,7 @@ import { env } from '../env';
 import { conflict, forbidden, invalid, notFound, DomainError } from '../errors';
 import { audit, type Actor } from '../audit';
 import { hmacHex, safeEqualStr } from '../ids';
-import { requirePerm, actorOf } from '../auth/guard';
+import { requirePerm, requireAnyPerm, actorOf } from '../auth/guard';
 import type { SessionUser } from '../auth/sessions';
 import { enforceRateLimit } from '../auth/rate-limit';
 import { getSettings, type DeliverySettings } from '../settings';
@@ -22,6 +22,7 @@ import {
 } from '../orders/core';
 import { LOCATION_SHARING_STATUSES, type DeliveryStatus } from '@/lib/states';
 import { locationUpdateSchema } from '@/lib/validation';
+import { localParts, zonedToUtc } from '@/lib/time';
 
 // ---------------------------------------------------------------------------
 // Proof-of-delivery PIN
@@ -107,7 +108,9 @@ export async function assignRider(
   args: { orderId: string; riderUserId: string; riderFeePesewas?: number | null; allowOffline?: boolean; reason?: string },
   db: Db = sql,
 ) {
-  requirePerm(user, 'dispatch.manage');
+  requireAnyPerm(user, ['dispatch.manage', 'dispatch.assign']);
+  // Only dispatch managers may send an offline rider or set a custom fee; kitchen staff pick from online riders.
+  if (!user!.permissions.has('dispatch.manage') && (args.allowOffline || args.riderFeePesewas != null)) throw forbidden();
   const actor = actorOf(user);
   const s = await getSettings('delivery', db);
   const res = await tx(async (t) => {
@@ -199,7 +202,7 @@ export async function riderRespond(user: SessionUser | null, orderId: string, re
       await notifyOrder(t, order, 'rider_assigned', a.id);
     } else {
       if (!reason?.trim()) throw invalid('Please give a reason for declining.');
-      if (a.status !== 'offered') throw conflict('You have already accepted this delivery. Ask dispatch to reassign it.');
+      if (a.status !== 'offered') throw conflict('You have already accepted this delivery. Ask the restaurant to reassign it.');
       await endLiveAssignment(t, orderId, 'declined', reason);
       await t`update fulfillments set rider_user_id = null where order_id = ${orderId}`;
       await setFulfillmentStatus(t, f, 'unassigned', actor, { message: `Declined by ${user!.fullName}: ${reason}` });
@@ -260,7 +263,7 @@ export async function confirmDeliveryWithPin(user: SessionUser | null, orderId: 
   const outcome = await tx(async (t) => {
     const { order, f } = await lockRiderDelivery(t, user!, orderId);
     if (!['picked_up', 'on_the_way', 'arrived'].includes(f.status)) throw conflict('Mark the order as picked up first.');
-    if (f.pinLocked) throw new DomainError('pin_locked', 'Too many incorrect PINs. Ask dispatch to confirm the delivery.', 423);
+    if (f.pinLocked) throw new DomainError('pin_locked', 'Too many incorrect PINs. Ask the restaurant to confirm the delivery.', 423);
     if (order.paymentStatus === 'cash_due') throw conflict('Record the cash payment before completing the delivery.', { code: 'cash_due' });
     const ok = /^\d{4}$/.test(pin) && safeEqualStr(pin, deliveryPin(order.id));
     if (!ok) {
@@ -277,12 +280,12 @@ export async function confirmDeliveryWithPin(user: SessionUser | null, orderId: 
   }, db);
   kickNotificationDispatch();
   if (!outcome.ok) {
-    throw new DomainError(outcome.locked ? 'pin_locked' : 'pin_incorrect', outcome.locked ? 'Too many incorrect PINs. Ask dispatch to confirm the delivery.' : `Incorrect PIN. ${outcome.remaining} attempt(s) left.`, outcome.locked ? 423 : 422);
+    throw new DomainError(outcome.locked ? 'pin_locked' : 'pin_incorrect', outcome.locked ? 'Too many incorrect PINs. Ask the restaurant to confirm the delivery.' : `Incorrect PIN. ${outcome.remaining} attempt(s) left.`, outcome.locked ? 423 : 422);
   }
   return outcome;
 }
 
-/** Authorised exception: dispatcher/manager confirms delivery without the PIN (reason recorded). */
+/** Authorised exception: owner/manager confirms delivery without the PIN (reason recorded). */
 export async function overrideDelivery(user: SessionUser | null, orderId: string, reason: string, db: Db = sql) {
   requirePerm(user, 'dispatch.manage');
   if (!reason?.trim() || reason.trim().length < 5) throw invalid('Explain why the delivery is being confirmed without a PIN.');
@@ -302,13 +305,13 @@ export async function overrideDelivery(user: SessionUser | null, orderId: string
 
 export async function failDelivery(user: SessionUser | null, orderId: string, reason: string, db: Db = sql) {
   if (!reason?.trim()) throw invalid('A reason is required.');
-  const isDispatcher = !!user?.permissions.has('dispatch.manage');
-  if (!isDispatcher) requirePerm(user, 'rider.deliver');
+  const isDispatchManager = !!user?.permissions.has('dispatch.manage');
+  if (!isDispatchManager) requirePerm(user, 'rider.deliver');
   const actor = actorOf(user);
   const res = await tx(async (t) => {
     const order = await lockOrder(t, orderId);
     const f = await lockFulfillment(t, orderId);
-    if (!isDispatcher && (f.method !== 'in_house' || f.riderUserId !== user!.id)) throw forbidden('This delivery is not assigned to you.');
+    if (!isDispatchManager && (f.method !== 'in_house' || f.riderUserId !== user!.id)) throw forbidden('This delivery is not assigned to you.');
     if (!['picked_up', 'on_the_way', 'arrived'].includes(f.status)) throw conflict('Only deliveries in progress can be marked failed.');
     await setFulfillmentStatus(t, f, 'failed', actor, { message: reason });
     await t`update fulfillments set failure_reason = ${reason} where order_id = ${orderId}`;
@@ -440,7 +443,7 @@ export async function riderAssignments(user: SessionUser | null, db: Db = sql) {
     where a.rider_user_id = ${user!.id} and a.status in ('offered','accepted')
     order by a.assigned_at`;
   return {
-    restaurant: { name: restaurant.name, addressLine: restaurant.addressLine, lat: restaurant.lat, lng: restaurant.lng, phone: restaurant.phone },
+    restaurant: { name: restaurant.name, addressLine: restaurant.addressLine, lat: restaurant.lat, lng: restaurant.lng, phone: restaurant.phone, whatsapp: restaurant.whatsapp },
     assignments: rows.map((r) => ({
       ...r,
       // Contact details are only needed once the rider has accepted.
@@ -462,4 +465,104 @@ export async function riderHistory(user: SessionUser | null, db: Db = sql) {
     from delivery_assignments a join orders o on o.id = a.order_id join fulfillments f on f.order_id = o.id
     where a.rider_user_id = ${user!.id} and a.status not in ('offered','accepted')
     order by a.assigned_at desc limit 50`;
+}
+
+// ---------------------------------------------------------------------------
+// Rider app extras: earnings, cash to hand in, profile
+// ---------------------------------------------------------------------------
+
+export const VEHICLE_TYPES = ['motorbike', 'bicycle', 'car', 'on_foot'] as const;
+
+async function cashHeld(riderId: string, db: Db): Promise<{ collectedPesewas: number; handedInPesewas: number }> {
+  const [c] = await db<{ n: number }[]>`
+    select coalesce(sum(amount_pesewas),0)::int as n from payment_attempts
+    where provider = 'cash' and status = 'successful' and collected_by = ${riderId}`;
+  const [h] = await db<{ n: number }[]>`select coalesce(sum(amount_pesewas),0)::int as n from rider_cash_handovers where rider_user_id = ${riderId}`;
+  return { collectedPesewas: c.n, handedInPesewas: h.n };
+}
+
+/** Start of today / this week (Monday) / this month in the restaurant's timezone, as UTC instants. */
+function periodStarts(tz: string, now = new Date()) {
+  const p = localParts(now, tz);
+  const today = zonedToUtc(p.year, p.month, p.day, 0, 0, tz);
+  const mondayNoon = new Date(today.getTime() - ((p.weekday + 6) % 7) * 86400000 + 12 * 3600000);
+  const m = localParts(mondayNoon, tz);
+  return { today, week: zonedToUtc(m.year, m.month, m.day, 0, 0, tz), month: zonedToUtc(p.year, p.month, 1, 0, 0, tz) };
+}
+
+export async function riderStats(user: SessionUser | null, db: Db = sql) {
+  requirePerm(user, 'rider.deliver');
+  const tz = (await getSettings('restaurant', db)).timezone;
+  const st = periodStarts(tz);
+  const period = async (from: Date) => {
+    const [r] = await db<{ n: number; fee: number }[]>`
+      select count(*)::int as n, coalesce(sum(rider_fee_pesewas),0)::int as fee
+      from delivery_assignments where rider_user_id = ${user!.id} and status = 'completed' and ended_at >= ${from}`;
+    return { deliveries: r.n, feePesewas: r.fee };
+  };
+  const [today, week, month] = await Promise.all([period(st.today), period(st.week), period(st.month)]);
+  const held = await cashHeld(user!.id, db);
+  const [ct] = await db<{ n: number }[]>`
+    select coalesce(sum(amount_pesewas),0)::int as n from payment_attempts
+    where provider = 'cash' and status = 'successful' and collected_by = ${user!.id} and paid_at >= ${st.today}`;
+  const [prof] = await db<{ fullName: string; phone: string | null; email: string | null; vehicleType: string | null; vehiclePlate: string | null; memberSince: Date; lastLoginAt: Date | null }[]>`
+    select u.full_name, u.phone, u.email, rp.vehicle_type, rp.vehicle_plate, u.created_at as member_since, u.last_login_at
+    from users u left join rider_profiles rp on rp.user_id = u.id where u.id = ${user!.id}`;
+  const [life] = await db<{ completed: number; fee: number; failed: number; declined: number; avgSeconds: number | null }[]>`
+    select count(*) filter (where status = 'completed')::int as completed,
+           coalesce(sum(rider_fee_pesewas) filter (where status = 'completed'),0)::int as fee,
+           count(*) filter (where status = 'failed')::int as failed,
+           count(*) filter (where status = 'declined')::int as declined,
+           (avg(extract(epoch from (ended_at - assigned_at))) filter (where status = 'completed'))::float as avg_seconds
+    from delivery_assignments where rider_user_id = ${user!.id}`;
+  const attempted = life.completed + life.failed;
+  return {
+    today,
+    week,
+    month,
+    cashCollectedTodayPesewas: ct.n,
+    cashToHandInPesewas: Math.max(0, held.collectedPesewas - held.handedInPesewas),
+    profile: { ...prof, vehicleType: prof?.vehicleType ?? 'motorbike' },
+    lifetime: {
+      deliveries: life.completed,
+      feePesewas: life.fee,
+      failed: life.failed,
+      declined: life.declined,
+      completionRate: attempted ? Math.round((life.completed / attempted) * 100) : null,
+      avgMinutes: life.avgSeconds != null ? Math.round(life.avgSeconds / 60) : null,
+    },
+  };
+}
+
+export async function updateRiderVehicle(user: SessionUser | null, args: { vehicleType: string; vehiclePlate?: string | null }, db: Db = sql) {
+  requirePerm(user, 'rider.deliver');
+  if (!(VEHICLE_TYPES as readonly string[]).includes(args.vehicleType)) throw invalid('Choose a valid vehicle type.');
+  const plate = args.vehiclePlate?.trim().slice(0, 20) || null;
+  await db`
+    insert into rider_profiles (user_id, vehicle_type, vehicle_plate) values (${user!.id}, ${args.vehicleType}, ${plate})
+    on conflict (user_id) do update set vehicle_type = excluded.vehicle_type, vehicle_plate = excluded.vehicle_plate`;
+}
+
+/** Riders who hold cash (collected minus handed in). For the owner/manager to settle. */
+export async function riderCashBalances(user: SessionUser | null, db: Db = sql) {
+  requirePerm(user, 'cash.collect');
+  const rows = await db<{ riderUserId: string; fullName: string; collected: number; handedIn: number }[]>`
+    select u.id as rider_user_id, u.full_name,
+           coalesce((select sum(amount_pesewas) from payment_attempts p where p.provider = 'cash' and p.status = 'successful' and p.collected_by = u.id),0)::int as collected,
+           coalesce((select sum(amount_pesewas) from rider_cash_handovers h where h.rider_user_id = u.id),0)::int as handed_in
+    from users u join user_roles r on r.user_id = u.id and r.role = 'rider' where u.is_active order by u.full_name`;
+  return rows.map((r) => ({ riderUserId: r.riderUserId, fullName: r.fullName, balancePesewas: Math.max(0, r.collected - r.handedIn) }));
+}
+
+export async function recordCashHandover(user: SessionUser | null, riderUserId: string, amountPesewas: number, note?: string | null, db: Db = sql) {
+  requirePerm(user, 'cash.collect');
+  if (!Number.isSafeInteger(amountPesewas) || amountPesewas <= 0) throw invalid('Enter an amount greater than zero.');
+  await tx(async (t) => {
+    await t`select pg_advisory_xact_lock(hashtext(${'cash:' + riderUserId}))`;
+    const held = await cashHeld(riderUserId, t);
+    const balance = held.collectedPesewas - held.handedInPesewas;
+    if (amountPesewas > balance) throw conflict('That is more than the rider is holding.');
+    await t`insert into rider_cash_handovers (rider_user_id, amount_pesewas, note, received_by) values (${riderUserId}, ${amountPesewas}, ${note?.trim().slice(0, 200) || null}, ${user!.id})`;
+    await audit(t, actorOf(user), 'rider.cash_handed_in', 'user', riderUserId, { amountPesewas });
+  }, db);
 }

@@ -13,6 +13,7 @@ import { LogoutButton } from '@/components/LoginForm';
 import { ReorderButton } from '@/components/shop/ReorderButton';
 import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import { saveNotificationPrefs } from './actions';
+import { BackLink } from '@/components/shop/BackLink';
 
 export const metadata: Metadata = { title: 'Your account' };
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,7 @@ export default async function AccountPage() {
   const tz = sf.restaurant.timezone;
   return (
     <div className="wrap section" style={{ paddingTop: 28 }}>
+      <BackLink href="/menu" label="Back to menu" />
       <div className="row between">
         <h1>Hi, {user.fullName.split(' ')[0]}</h1>
         <LogoutButton to="/" />

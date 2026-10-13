@@ -4,6 +4,27 @@ import Image from 'next/image';
 import { getStorefront, getMenuForStorefront, publicZones } from '@/server/storefront';
 import { DEFAULT_STORY, CATEGORY_BLURBS, VALUES, PROCESS } from '@/lib/about-story';
 
+const VALUE_PHOTOS = [
+  { src: '/brand/crunchy-salad.jpg', alt: 'A fresh salad with grilled chicken and a boiled egg' },
+  { src: '/brand/tuna-sandwich.jpg', alt: 'A creamy tuna sandwich' },
+  { src: '/brand/snack-box.jpg', alt: 'A snack box from the menu' },
+  { src: '/brand/cat-drinks.jpg', alt: 'Chilled milk drinks' },
+];
+
+const MAKE_PHOTOS: Record<string, string> = {
+  sandwiches: '/brand/tuna-sandwich.jpg',
+  salads: '/brand/crunchy-salad.jpg',
+  combo: '/brand/snack-box.jpg',
+  drinks: '/brand/cat-drinks.jpg',
+};
+
+const PROC_ICONS = [
+  <path key="a" d="M4 4h16v12h-5l-1.5 3h-3L9 16H4zM4 12h4.5l1 2h5l1-2H20" />,
+  <path key="b" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm-4-9 3 3 5-6" />,
+  <path key="c" d="M5 11h14v2a7 7 0 0 1-14 0zM3 11h18M9 7c0-1.5 1.5-1.5 1.5-3M14 7c0-1.5 1.5-1.5 1.5-3" />,
+  <path key="d" d="M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19.2a1.7 1.7 0 1 0 0-.1zM17 19.2a1.7 1.7 0 1 0 0-.1z" />,
+];
+
 export const metadata: Metadata = { title: 'About us' };
 export const dynamic = 'force-dynamic';
 
@@ -27,16 +48,15 @@ export default async function AboutPage() {
 
   return (
     <>
-      <section className="about-hero">
-        <div className="wrap">
-          <p className="hero-eyebrow">About us</p>
-          <h1>
-            {r.name}
-            <br />
-            <em>Good food. Good mood.</em>
-          </h1>
+      <header className="menu-hero">
+        <Image src="/brand/hero-bg.jpg" alt="" fill priority sizes="100vw" className="menu-hero-bg" />
+        <div className="menu-hero-shade" />
+        <div className="wrap menu-hero-in">
+          <p className="hero-eyebrow">{r.name}</p>
+          <h1>About us</h1>
+          <p className="menu-hero-sub">Fresh food, made with care, for pickup or delivery.</p>
         </div>
-      </section>
+      </header>
 
       <section className="section wrap">
         <div className="about-grid">
@@ -57,7 +77,7 @@ export default async function AboutPage() {
             </div>
           </div>
           <div className="about-photo">
-            <Image src="/brand/snack-box.jpg" alt="A snack box from the menu" fill sizes="(max-width: 860px) 100vw, 480px" />
+            <Image src="/brand/snack-box.jpg" alt="A snack box from the menu" fill sizes="(max-width: 860px) 100vw, 50vw" />
           </div>
         </div>
       </section>
@@ -66,13 +86,18 @@ export default async function AboutPage() {
         <div className="wrap">
           <p className="info-kicker">What we stand for</p>
           <h2>The way we cook, and the way we serve</h2>
-          <div className="values-grid">
+          <div className="values-board">
             {VALUES.map((v, i) => (
-              <article key={v.title} className="value-card">
-                <span className="value-num">{String(i + 1).padStart(2, '0')}</span>
-                <h3>{v.title}</h3>
-                <p>{v.text}</p>
-              </article>
+              <div key={v.title} className={`values-row${i % 2 ? ' flip' : ''}`}>
+                <div className="values-photo">
+                  <Image src={VALUE_PHOTOS[i % VALUE_PHOTOS.length].src} alt={VALUE_PHOTOS[i % VALUE_PHOTOS.length].alt} fill sizes="(max-width: 860px) 100vw, 62vw" />
+                </div>
+                <article className="value-card">
+                  <span className="value-num">{String(i + 1).padStart(2, '0')}</span>
+                  <h3>{v.title}</h3>
+                  <p>{v.text}</p>
+                </article>
+              </div>
             ))}
           </div>
         </div>
@@ -82,21 +107,26 @@ export default async function AboutPage() {
         <section className="section wrap">
           <p className="info-kicker">What we make</p>
           <h2>Something for every kind of hunger</h2>
-          <div className="make-grid">
-            {cats.map((c) => (
-              <Link key={c.id} href={`/menu#cat-${c.id}`} className="make-card">
-                <div>
-                  <h3>{c.name}</h3>
-                  <p>{CATEGORY_BLURBS[c.name.trim().toLowerCase()] ?? ''}</p>
-                </div>
-                <span className="make-foot">
-                  <small>
-                    {c.count} {c.count === 1 ? 'dish' : 'dishes'}
-                  </small>
-                  <span aria-hidden="true">→</span>
-                </span>
-              </Link>
-            ))}
+          <div className="bento">
+            {cats.map((c) => {
+              const photo = MAKE_PHOTOS[c.name.trim().toLowerCase()];
+              return (
+                <Link key={c.id} href={`/menu#cat-${c.id}`} className={`bento-tile${photo ? '' : ' plain'}`}>
+                  {photo && <Image src={photo} alt="" fill sizes="(max-width: 860px) 100vw, 50vw" className="bento-img" />}
+                  <span className="bento-shade" />
+                  <span className="bento-body">
+                    <span className="bento-count">
+                      {c.count} {c.count === 1 ? 'dish' : 'dishes'}
+                    </span>
+                    <h3>{c.name}</h3>
+                    <p>{CATEGORY_BLURBS[c.name.trim().toLowerCase()] ?? ''}</p>
+                    <span className="bento-go" aria-hidden="true">
+                      View →
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
@@ -105,10 +135,14 @@ export default async function AboutPage() {
         <div className="wrap">
           <p className="info-kicker">From our kitchen to your table</p>
           <h2>What happens after you order</h2>
-          <ol className="process-list">
+          <ol className="proc-grid">
             {PROCESS.map((p, i) => (
               <li key={p.title}>
-                <span className="process-dot">{i + 1}</span>
+                <span className="proc-ico" aria-hidden="true">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    {PROC_ICONS[i % PROC_ICONS.length]}
+                  </svg>
+                </span>
                 <h3>{p.title}</h3>
                 <p>{p.text}</p>
               </li>

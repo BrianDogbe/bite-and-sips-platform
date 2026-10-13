@@ -1,6 +1,6 @@
 export function PeriodPicker({ fromKey, toKey, today }: { fromKey: string; toKey: string; today: string }) {
   return (
-    <form method="get" className="filters panel tight">
+    <form method="get" className="filters panel tight period-bar">
       <div className="field">
         <label htmlFor="pf">From</label>
         <input id="pf" type="date" name="from" className="input" defaultValue={fromKey} max={today} />

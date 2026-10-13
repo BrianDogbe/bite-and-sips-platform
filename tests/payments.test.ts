@@ -145,9 +145,11 @@ test('refunds: authorisation, validation, pending → processed via provider syn
   const { r, a } = await newOnlineOrder();
   await mockPay(a.reference, 'success');
   const kitchen = await makeUser(['kitchen']);
-  const mgr = await makeUser(['manager']);
+  const mgr = await makeUser(['owner']);
+  const manager = await makeUser(['manager']);
   const total = (await orderRow(r.orderId)).totalPesewas;
   await assert.rejects(requestRefund(kitchen, { orderId: r.orderId, amountPesewas: 100, reason: 'x', idempotencyKey: 'k0' }), /permission/);
+  await assert.rejects(requestRefund(manager, { orderId: r.orderId, amountPesewas: 100, reason: 'x', idempotencyKey: 'k0m' }), /permission/);
   await assert.rejects(requestRefund(mgr, { orderId: r.orderId, amountPesewas: total + 1, reason: 'too much', idempotencyKey: 'k1' }), /maximum refundable/);
 
   const key = randomUUID();

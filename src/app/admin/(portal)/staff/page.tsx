@@ -8,6 +8,8 @@ import { formatLocalDateTime } from '@/lib/time';
 import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import { ActionButton } from '@/components/ActionButton';
 import { Badge } from '@/components/Badge';
+import { RevealPassword } from '@/components/admin/RevealPassword';
+import { RoleChoice } from '@/components/admin/RoleChoice';
 import type { ActionResult } from '@/lib/action-result';
 
 export const dynamic = 'force-dynamic';
@@ -47,65 +49,90 @@ export default async function Staff() {
   const user = await requirePagePerm('staff.manage', '/admin/login');
   const [staff, r] = await Promise.all([listStaff(user), getSettings('restaurant')]);
   const grantable = STAFF_ROLES.filter((x) => canGrantRole(user.roles, x));
+  const activeCount = staff.filter((x) => x.isActive).length;
   return (
     <>
-      <div className="admin-top"><h1>Staff</h1></div>
-      <div className="two-col">
-        <section className="panel">
-          <div className="table-wrap">
-            <table className="data">
-              <thead><tr><th>Name</th><th>Roles</th><th>Last sign-in</th><th /></tr></thead>
-              <tbody>
-                {staff.map((s) => (
-                  <tr key={s.id}>
-                    <td><strong>{s.fullName}</strong> {!s.isActive && <Badge tone="neutral">Inactive</Badge>}<div className="small muted">{s.email ?? s.phone}</div></td>
-                    <td>
+      <div className="admin-top">
+        <div>
+          <h1>Staff</h1>
+          <p className="muted" style={{ margin: 0 }}>{activeCount} active of {staff.length} accounts</p>
+        </div>
+      </div>
+      <div className="two-col menu-layout">
+        <section className="panel staff-panel">
+          <div className="dsp-head"><h2>Team <span className="dsp-count">{staff.length}</span></h2></div>
+          {staff.length === 0 ? <p className="empty-box">No staff accounts yet.</p> : (
+            <ul className="staff-list">
+              {staff.map((s) => {
+                const rl = s.roles.filter((x) => x !== 'customer');
+                const locked = s.roles.includes('owner') && !user.roles.includes('owner');
+                return (
+                  <li key={s.id} className={`staff-row${s.isActive ? '' : ' inactive'}`}>
+                    <span className="staff-avatar" aria-hidden="true">{s.fullName.trim().charAt(0).toUpperCase()}</span>
+                    <div className="staff-info">
+                      <strong>{s.fullName}</strong>
+                      <span className="small muted">{s.email ?? s.phone}</span>
+                    </div>
+                    <div className="staff-roles">
+                      {!s.isActive && <Badge tone="neutral">Inactive</Badge>}
+                      {rl.map((x) => <Badge key={x} tone={x === 'owner' ? 'info' : 'neutral'}>{ROLE_LABELS[x]}</Badge>)}
+                    </div>
+                    <div className="staff-last">
+                      <span className="small muted">Last sign-in</span>
+                      <span className="small">{s.lastLoginAt ? formatLocalDateTime(s.lastLoginAt, r.timezone) : 'Never'}</span>
+                    </div>
+                    <div className="staff-actions">
+                      {s.id !== user.id && !locked && <ActionButton className="btn sm ghost" action={activeAction.bind(null, s.id, !s.isActive)} confirm={s.isActive ? `Deactivate ${s.fullName}? They will be signed out immediately.` : undefined}>{s.isActive ? 'Deactivate' : 'Reactivate'}</ActionButton>}
+                    </div>
+                    {locked ? <div className="staff-more"><span className="small muted">Only an owner can change this account.</span></div> : (
+                    <div className="staff-more">
                       <details>
-                        <summary>{s.roles.filter((x) => x !== 'customer').map((x) => ROLE_LABELS[x]).join(', ')}</summary>
+                        <summary className="linkish small">Edit roles</summary>
                         <ActionForm action={rolesAction.bind(null, s.id)} className="stack">
-                          {STAFF_ROLES.map((x) => (
-                            <label key={x} className="check small"><input type="checkbox" name="roles" value={x} defaultChecked={s.roles.includes(x)} disabled={!grantable.includes(x)} /> {ROLE_LABELS[x]}</label>
-                          ))}
+                          <RoleChoice options={STAFF_ROLES.map((x) => ({ value: x, label: ROLE_LABELS[x], locked: !grantable.includes(x) }))} selected={s.roles.filter((x) => x !== 'customer')} />
                           <SubmitButton className="btn sm">Save roles</SubmitButton>
                         </ActionForm>
                       </details>
-                    </td>
-                    <td className="small">{s.lastLoginAt ? formatLocalDateTime(s.lastLoginAt, r.timezone) : 'Never'}</td>
-                    <td className="nowrap">
-                      {s.id !== user.id && <ActionButton className="btn sm" action={activeAction.bind(null, s.id, !s.isActive)} confirm={s.isActive ? `Deactivate ${s.fullName}? They will be signed out immediately.` : undefined}>{s.isActive ? 'Deactivate' : 'Reactivate'}</ActionButton>}
                       <details>
                         <summary className="linkish small">Reset password</summary>
                         <ActionForm action={resetAction.bind(null, s.id)} className="stack" resetOnSuccess>
-                          <input name="password" type="password" className="input" minLength={10} required placeholder="New temporary password" aria-label="New password" autoComplete="new-password" />
+                          <RevealPassword placeholder="New temporary password" label="New password" />
                           <SubmitButton className="btn sm">Reset</SubmitButton>
                         </ActionForm>
                       </details>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
-        <aside className="stack" style={{ ['--stack' as string]: '18px' }}>
-          <section className="panel">
-            <h2 style={{ fontSize: '1.15rem' }}>Add a staff member</h2>
-            <ActionForm action={createAction} className="stack" resetOnSuccess>
-              <div className="field"><label htmlFor="st-n">Full name</label><input id="st-n" name="name" className="input" required maxLength={80} /></div>
-              <div className="field"><label htmlFor="st-e">Email</label><input id="st-e" name="email" type="email" className="input" /></div>
-              <div className="field"><label htmlFor="st-p">Phone</label><input id="st-p" name="phone" type="tel" className="input" placeholder="Riders can sign in with phone" /></div>
-              <fieldset className="optgroup" style={{ margin: 0 }}>
-                <legend>Roles</legend>
-                {grantable.map((x) => <label key={x} className="check small"><input type="checkbox" name="roles" value={x} /> {ROLE_LABELS[x]}</label>)}
-              </fieldset>
-              <div className="field"><label htmlFor="st-pw">Temporary password</label><input id="st-pw" name="password" type="password" className="input" minLength={10} required autoComplete="new-password" /></div>
+        <aside className="menu-side">
+          <section className="panel menu-side-card">
+            <h2>Add a staff member</h2>
+            <ActionForm action={createAction} className="zone-groups" resetOnSuccess>
+              <div className="set-group">
+                <div className="set-label">Who</div>
+                <div className="field"><label htmlFor="st-n">Full name</label><input id="st-n" name="name" className="input" required maxLength={80} /></div>
+                <div className="field"><label htmlFor="st-e">Email</label><input id="st-e" name="email" type="email" className="input" /></div>
+                <div className="field"><label htmlFor="st-p">Phone</label><input id="st-p" name="phone" type="tel" className="input" placeholder="Riders can sign in with phone" /></div>
+              </div>
+              <div className="set-group">
+                <div className="set-label">Roles</div>
+                <RoleChoice options={grantable.map((x) => ({ value: x, label: ROLE_LABELS[x] }))} />
+              </div>
+              <div className="set-group">
+                <div className="set-label">Sign-in</div>
+                <div className="field"><label htmlFor="st-pw">Temporary password</label><RevealPassword id="st-pw" /></div>
+              </div>
               <SubmitButton>Create account</SubmitButton>
             </ActionForm>
           </section>
-          <section className="panel">
-            <h2 style={{ fontSize: '1.15rem' }}>What each role can do</h2>
+          <section className="panel menu-side-card">
+            <h2>What each role can do</h2>
             {STAFF_ROLES.map((x) => (
-              <details key={x}>
+              <details key={x} className="menu-edit">
                 <summary>{ROLE_LABELS[x]}</summary>
                 <p className="small muted">{ROLE_PERMISSIONS[x].join(', ')}</p>
               </details>

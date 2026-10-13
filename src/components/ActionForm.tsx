@@ -1,5 +1,5 @@
 'use client';
-import { useActionState, useEffect, useRef, type ReactNode } from 'react';
+import { useActionState, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useFormStatus } from 'react-dom';
 import type { ActionResult } from '@/lib/action-result';
 
@@ -26,10 +26,15 @@ export function ActionForm({
 }) {
   const [state, formAction] = useActionState(action, null);
   const ref = useRef<HTMLFormElement>(null);
+  const [hidden, setHidden] = useState(false);
   useEffect(() => {
+    setHidden(false);
     if (state?.ok) {
       if (resetOnSuccess) ref.current?.reset();
       onSuccess?.(state);
+      // Success messages fade away; errors stay until the next submit.
+      const t = setTimeout(() => setHidden(true), 4000);
+      return () => clearTimeout(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -45,7 +50,7 @@ export function ActionForm({
       {children}
       <div aria-live="polite" role="status">
         {state && !state.ok && <p className="alert error" style={{ marginTop: 10 }}>{state.error}</p>}
-        {state && state.ok && state.message && <p className="alert ok" style={{ marginTop: 10 }}>{state.message}</p>}
+        {state && state.ok && state.message && !hidden && <p className="alert ok" style={{ marginTop: 10 }}>{state.message}</p>}
       </div>
     </form>
   );

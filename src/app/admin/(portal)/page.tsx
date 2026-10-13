@@ -1,10 +1,13 @@
 import Link from 'next/link';
 import { requirePagePerm } from '@/server/auth/current';
-import { overview } from '@/server/reporting';
+import { overview, reports, financeSummary, listExpenses } from '@/server/reporting';
 import { openExceptions } from '@/server/ops';
 import { getAllSettings } from '@/server/settings';
 import { formatGHS } from '@/lib/money';
-import { formatLocalTime, formatLocalDate } from '@/lib/time';
+import { formatLocalTime, formatLocalDate, localDateKey } from '@/lib/time';
+import { resolvePeriod } from '@/server/period';
+import { Icon, type IconName } from '@/components/Icon';
+import { LineChart, Sparkline } from '@/components/admin/charts';
 import { LiveRefresh } from '@/components/admin/LiveRefresh';
 import { sql } from '@/server/db';
 
@@ -36,183 +39,232 @@ export default async function Overview() {
   ];
   const pending = setupTasks.filter((t) => !t.done);
 
+  // Last 7 days, for the trend charts.
+  const canFinance = user.permissions.has('finance.view');
+  const canReports = user.permissions.has('reports.view');
+  const keys = Array.from({ length: 7 }, (_, k) => localDateKey(new Date(Date.now() - (6 - k) * 86400_000), tz));
+  const labels = keys.map((k) => new Date(`${k}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }));
+  const per = resolvePeriod({}, tz, 7);
+  const [rep, exp, fin] = await Promise.all([
+    canReports ? reports(user, per.from, per.to) : Promise.resolve(null),
+    canFinance ? listExpenses(user, per.from, per.to) : Promise.resolve(null),
+    canFinance ? financeSummary(user, per.from, per.to) : Promise.resolve(null),
+  ]);
+  const dailyMap = new Map((rep?.daily ?? []).map((d) => [d.day, d]));
+  const salesSeries = keys.map((k) => (dailyMap.get(k)?.paidSales ?? 0) / 100);
+  const orderSeries = keys.map((k) => dailyMap.get(k)?.orders ?? 0);
+  const expMap = new Map<string, number>();
+  for (const e of exp ?? []) expMap.set(e.incurredOn.toISOString().slice(0, 10), (expMap.get(e.incurredOn.toISOString().slice(0, 10)) ?? 0) + e.amountPesewas);
+  const expSeries = keys.map((k) => (expMap.get(k) ?? 0) / 100);
+  const weekSales = salesSeries.reduce((a, b) => a + b, 0);
+  const weekExpenses = expSeries.reduce((a, b) => a + b, 0);
+  const popMax = Math.max(1, ...ov.popular.map((x) => x.qty));
+  const kitchenTotal = c.newOrders + c.preparing;
+  const firstName = user.fullName.trim().split(' ')[0];
+
+  type Note = { tone: 'danger' | 'warn' | 'info' | 'ok'; title: string; desc: string; href?: string };
+  const notes: Note[] = [];
+  if (c.paymentExceptions > 0) notes.push({ tone: 'danger', title: 'Payments need reconciliation', desc: `${c.paymentExceptions} payment(s) to review`, href: '/admin/orders?payment=reconciliation_required' });
+  for (const e of exceptions.slice(0, 4)) notes.push({ tone: 'warn', title: e.message, desc: `${e.orderNumber ? `${e.orderNumber} · ` : ''}by ${e.raisedByName ?? 'system'} at ${formatLocalTime(e.raisedAt, tz)}`, href: e.orderId ? `/admin/orders/${e.orderId}` : undefined });
+  for (const sItem of ov.lowStock.slice(0, 3)) notes.push({ tone: 'danger', title: `Low stock: ${sItem.name}`, desc: `${Number(sItem.quantity)} ${sItem.unit} left, reorder at ${Number(sItem.reorderLevel)}`, href: '/admin/inventory' });
+  if (user.permissions.has('support.manage') && ov.openCases > 0) notes.push({ tone: 'info', title: `${ov.openCases} open support case(s)`, desc: 'Customers waiting for a reply', href: '/admin/support' });
+  if (user.permissions.has('settings.manage')) for (const t of pending) notes.push({ tone: 'info', title: t.label, desc: 'Before you launch', href: t.href });
+
+  const actions: { href: string; icon: IconName; title: string; desc: string; show: boolean }[] = [
+    { href: '/admin/menu/new', icon: 'utensils', title: 'Add a dish', desc: 'Add a new item to the menu', show: user.permissions.has('menu.manage') },
+    { href: '/admin/inventory', icon: 'box', title: 'Update stock', desc: 'Add or adjust inventory items', show: user.permissions.has('inventory.manage') },
+    { href: '/admin/promotions', icon: 'tag', title: 'Create a promotion', desc: 'Offer a discount or promo code', show: user.permissions.has('menu.manage') },
+    { href: '/admin/finance', icon: 'wallet', title: 'Record an expense', desc: 'Log gas, packaging, wages and more', show: canFinance },
+    { href: '/admin/reports', icon: 'chart', title: 'View reports', desc: 'Sales, best sellers and operations', show: canReports },
+  ];
+  const visibleActions = actions.filter((a) => a.show);
+
+  const kpis: { icon: IconName; label: string; value: string; hint: string; href: string; tone?: 'danger' }[] = [];
+  if (canFinance) kpis.push({ icon: 'dollar', label: 'Sales today', value: formatGHS(ov.sales.paidSales), hint: 'Verified payments received today', href: '/admin/finance' });
+  kpis.push({ icon: 'receipt', label: 'Orders today', value: String(c.todayOrders), hint: `${c.pendingPayment} awaiting payment`, href: '/admin/orders' });
+  if (canFinance) kpis.push({ icon: 'trend', label: 'Average paid order', value: ov.sales.aov != null ? formatGHS(ov.sales.aov) : 'None yet', hint: 'Across today’s paid orders', href: '/admin/finance' });
+  kpis.push({ icon: 'alert', label: 'Need attention', value: String(c.attention), hint: c.attention ? 'Review flagged orders' : 'Nothing flagged', href: '/admin/orders?attention=1', tone: c.attention ? 'danger' : undefined });
+
   return (
     <>
-      <div className="admin-top">
-        <div>
-          <h1>Today</h1>
-          <p className="muted" style={{ margin: 0 }}>
-            {formatLocalDate(new Date(), tz)}. Figures exclude test orders.
-          </p>
+      <div className="dash-head">
+        <div className="dash-head-text">
+          <h1>Dashboard Overview</h1>
+          <p className="dash-welcome">Welcome back, {firstName}! Here’s what’s happening today.</p>
         </div>
-        <div className="row">
+        <div className="dash-head-chips">
           {!settings.ordering.acceptingOrders && <span className="badge danger">Online ordering paused</span>}
+          <span className="dash-chip">{formatLocalDate(new Date(), tz)}</span>
+          <span className="dash-chip muted-chip">Test orders excluded</span>
           <LiveRefresh topics={['admin']} />
         </div>
       </div>
 
-      {pending.length > 0 && user.permissions.has('settings.manage') && (
-        <section className="panel" style={{ marginBottom: 18, borderColor: 'var(--accent-2)', background: 'var(--caramel-tint)' }}>
-          <h2 style={{ fontSize: '1.15rem' }}>Before you launch</h2>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
-            {pending.map((t) => (
-              <li key={t.label}>
-                <Link href={t.href}>{t.label}</Link>
-                {t.optional ? <span className="muted"> (if applicable)</span> : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <div className="kpis">
-        <Link href="/admin/orders?attention=1" className={`kpi ${c.attention ? 'alert-kpi' : ''}`}>
-          <div className="v">{c.attention}</div>
-          <div className="l">Need attention</div>
-        </Link>
-        <Link href="/admin/kitchen" className={`kpi ${c.delayed ? 'alert-kpi' : ''}`}>
-          <div className="v">{c.delayed}</div>
-          <div className="l">Past promised time, not ready</div>
-        </Link>
-        <Link href="/admin/kitchen" className="kpi">
-          <div className="v">{c.newOrders}</div>
-          <div className="l">Waiting for kitchen</div>
-        </Link>
-        <Link href="/admin/kitchen" className="kpi">
-          <div className="v">{c.preparing}</div>
-          <div className="l">Preparing</div>
-        </Link>
-        <Link href="/admin/orders?status=in_progress" className="kpi">
-          <div className="v">{c.readyPickup}</div>
-          <div className="l">Ready for pickup</div>
-        </Link>
-        <Link href="/admin/dispatch" className={`kpi ${c.awaitingDispatch ? 'alert-kpi' : ''}`}>
-          <div className="v">{c.awaitingDispatch}</div>
-          <div className="l">Deliveries without a rider</div>
-        </Link>
-        <Link href="/admin/dispatch" className="kpi">
-          <div className="v">{c.outForDelivery}</div>
-          <div className="l">Out for delivery</div>
-        </Link>
-        <Link href="/admin/orders?status=pending_payment" className="kpi">
-          <div className="v">{c.pendingPayment}</div>
-          <div className="l">Awaiting payment</div>
-        </Link>
+      <div className="dash-kpis">
+        {kpis.map((k) => (
+          <Link key={k.label} href={k.href} className={`dash-kpi${k.tone ? ` ${k.tone}` : ''}`}>
+            <div>
+              <div className="dash-kpi-l">{k.label}</div>
+              <div className="dash-kpi-v">{k.value}</div>
+              <div className="dash-kpi-h">{k.hint}</div>
+            </div>
+            <span className="dash-ico"><Icon name={k.icon} size={22} /></span>
+          </Link>
+        ))}
       </div>
 
-      <div className="two-col" style={{ marginTop: 18 }}>
-        <div className="stack" style={{ ['--stack' as string]: '18px' }}>
-          {user.permissions.has('finance.view') && (
-            <section className="panel">
-              <h2 style={{ fontSize: '1.15rem' }}>Sales today</h2>
-              <div className="kpis">
-                <div>
-                  <div className="kpi" style={{ border: 0, padding: 0 }}>
-                    <div className="v">{formatGHS(ov.sales.paidSales)}</div>
-                    <div className="l">Paid sales (verified payments received today)</div>
+      <div className="dash-row3">
+        <section className="panel dash-card">
+          <div className="dash-card-head">
+            <h2>Kitchen status</h2>
+            <Link href="/admin/kitchen" className="dash-ico sm" aria-label="Open kitchen monitor"><Icon name="flame" size={18} /></Link>
+          </div>
+          <div className="dash-total"><span className="muted">Orders in the kitchen</span><strong>{kitchenTotal}</strong></div>
+          <div className="dash-meter" role="img" aria-label={`${c.newOrders} waiting, ${c.preparing} preparing`}>
+            <span style={{ width: kitchenTotal ? `${(c.preparing / kitchenTotal) * 100}%` : '0%' }} />
+          </div>
+          <div className="dash-tiles">
+            <Link href="/admin/kitchen" className="dash-tile"><span>Waiting</span><strong>{c.newOrders}</strong></Link>
+            <Link href="/admin/kitchen" className="dash-tile"><span>Preparing</span><strong>{c.preparing}</strong></Link>
+            <Link href="/admin/kitchen" className={`dash-tile${c.delayed ? ' danger' : ''}`}><span>Past promised time</span><strong>{c.delayed}</strong></Link>
+          </div>
+        </section>
+
+        <section className="panel dash-card">
+          <div className="dash-card-head">
+            <h2>Orders summary</h2>
+            <Link href="/admin/orders" className="dash-ico sm" aria-label="Open orders"><Icon name="receipt" size={18} /></Link>
+          </div>
+          <div className="dash-tiles two">
+            <Link href="/admin/orders" className="dash-tile"><span>Placed today</span><strong>{c.todayOrders}</strong></Link>
+            <Link href="/admin/orders?status=pending_payment" className="dash-tile"><span>Awaiting payment</span><strong>{c.pendingPayment}</strong></Link>
+          </div>
+          {canReports && (
+            <div className="dash-trend">
+              <div className="small muted">7-day order trend</div>
+              <Sparkline values={orderSeries} ariaLabel="Orders per day over the last 7 days" />
+            </div>
+          )}
+          {ov.attention.length === 0 ? (
+            <p className="dsp-empty">No orders need attention.</p>
+          ) : (
+            <ul className="dash-list">
+              {ov.attention.slice(0, 3).map((a) => (
+                <li key={a.id}>
+                  <div>
+                    <strong className="tnum">{a.orderNumber}</strong>
+                    <span className="small muted">{a.attentionReason ?? 'Needs attention'}</span>
                   </div>
-                </div>
-                <div className="kpi" style={{ border: 0, padding: 0 }}>
-                  <div className="v">{c.todayOrders}</div>
-                  <div className="l">Orders placed today</div>
-                </div>
-                <div className="kpi" style={{ border: 0, padding: 0 }}>
-                  <div className="v">{ov.sales.aov != null ? formatGHS(ov.sales.aov) : 'None yet'}</div>
-                  <div className="l">Average paid order</div>
-                </div>
+                  <Link href={`/admin/orders/${a.id}`} className="btn sm ghost">Review</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="panel dash-card">
+          <div className="dash-card-head">
+            <h2>Pickup and delivery</h2>
+            <Link href="/admin/dispatch" className="dash-ico sm" aria-label="Open dispatch"><Icon name="bike" size={18} /></Link>
+          </div>
+          <div className="dash-tiles two">
+            <Link href="/admin/orders?status=in_progress" className="dash-tile"><span>Ready for pickup</span><strong>{c.readyPickup}</strong></Link>
+            <Link href="/admin/dispatch" className="dash-tile"><span>Out for delivery</span><strong>{c.outForDelivery}</strong></Link>
+          </div>
+          <Link href="/admin/dispatch" className={`dash-callout${c.awaitingDispatch ? ' danger' : ''}`}>
+            <span>Deliveries without a rider</span>
+            <strong>{c.awaitingDispatch}</strong>
+          </Link>
+          {c.awaitingDispatch === 0 && <p className="small muted" style={{ margin: 0 }}>Every delivery has a rider.</p>}
+        </section>
+      </div>
+
+      <div className="dash-row2">
+        {canReports && canFinance && (
+          <section className="panel dash-card">
+            <div className="dash-card-head">
+              <div>
+                <h2>Sales &amp; expenses</h2>
+                <span className="muted small">Last 7 days</span>
               </div>
-              {c.paymentExceptions > 0 && (
-                <p className="alert error" style={{ marginTop: 12 }}>
-                  {c.paymentExceptions} payment(s) need reconciliation. <Link href="/admin/orders?payment=reconciliation_required">Review</Link>
-                </p>
-              )}
-            </section>
+              <Link href="/admin/finance" className="dash-ico sm" aria-label="Open finance"><Icon name="wallet" size={18} /></Link>
+            </div>
+            <div className="dash-tiles two">
+              <div className="dash-tile sage"><span>Sales</span><strong>{formatGHS(Math.round(weekSales * 100))}</strong></div>
+              <div className="dash-tile caramel"><span>Expenses</span><strong>{formatGHS(fin?.expenses ?? Math.round(weekExpenses * 100))}</strong></div>
+            </div>
+            {weekSales === 0 && weekExpenses === 0 ? (
+              <p className="empty-box">No sales or expenses recorded in the last 7 days.</p>
+            ) : (
+              <>
+                <LineChart labels={labels} series={[{ name: 'Sales', values: salesSeries, color: '#5d6a52' }, { name: 'Expenses', values: expSeries, color: '#c58b59' }]} ariaLabel="Daily sales and expenses over the last 7 days, in cedis" />
+                <div className="dash-legend"><span><i style={{ background: '#5d6a52' }} />Sales</span><span><i style={{ background: '#c58b59' }} />Expenses</span></div>
+              </>
+            )}
+          </section>
+        )}
+        <section className="panel dash-card">
+          <div className="dash-card-head">
+            <div>
+              <h2>Popular this week</h2>
+              <span className="muted small">Dishes ordered, last 7 days</span>
+            </div>
+            <Link href="/admin/menu" className="dash-ico sm" aria-label="Open menu"><Icon name="utensils" size={18} /></Link>
+          </div>
+          {ov.popular.length === 0 ? (
+            <p className="empty-box">No orders yet this week.</p>
+          ) : (
+            <ol className="dash-pop">
+              {ov.popular.map((x) => (
+                <li key={x.name}>
+                  <div className="dash-pop-top"><span>{x.name}</span><strong className="tnum">{x.qty}</strong></div>
+                  <div className="dash-meter thin"><span style={{ width: `${(x.qty / popMax) * 100}%` }} /></div>
+                </li>
+              ))}
+            </ol>
           )}
-          <section className="panel">
-            <h2 style={{ fontSize: '1.15rem' }}>Orders needing attention</h2>
-            {ov.attention.length === 0 ? (
-              <p className="muted">Nothing flagged. Failed payments, failed deliveries and kitchen alerts appear here.</p>
-            ) : (
-              <ul className="event-list">
-                {ov.attention.map((a) => (
-                  <li key={a.id}>
-                    <Link href={`/admin/orders/${a.id}`} className="tnum">
-                      {a.orderNumber}
-                    </Link>
+        </section>
+      </div>
+
+      <div className="dash-row2 even">
+        <section className="panel dash-card">
+          <div className="dash-card-head"><h2>Quick actions</h2></div>
+          <div className="dash-actions">
+            {visibleActions.map((a) => (
+              <Link key={a.href} href={a.href} className="dash-action">
+                <span className="dash-ico sm"><Icon name={a.icon} size={18} /></span>
+                <span>
+                  <strong>{a.title}</strong>
+                  <span className="small muted">{a.desc}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+        <section className="panel dash-card">
+          <div className="dash-card-head">
+            <h2>Notifications &amp; reminders</h2>
+            <span className="dsp-count">{notes.length}</span>
+          </div>
+          {notes.length === 0 ? (
+            <p className="dsp-empty">All clear. Failed payments, team alerts, low stock and setup reminders show up here.</p>
+          ) : (
+            <ul className="dash-notes">
+              {notes.slice(0, 8).map((n, i) => {
+                const inner = (
+                  <>
+                    <span className={`dash-dot ${n.tone}`} aria-hidden="true" />
                     <span>
-                      {a.attentionReason} <span className="muted small">({formatLocalTime(a.updatedAt, tz)})</span>
+                      <strong>{n.title}</strong>
+                      <span className="small muted">{n.desc}</span>
                     </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-          <section className="panel">
-            <h2 style={{ fontSize: '1.15rem' }}>Open alerts from the team</h2>
-            {exceptions.length === 0 ? (
-              <p className="muted">No open alerts.</p>
-            ) : (
-              <ul className="event-list">
-                {exceptions.slice(0, 10).map((e) => (
-                  <li key={e.id}>
-                    <span className="muted small">{formatLocalTime(e.raisedAt, tz)}</span>
-                    <span>
-                      {e.orderNumber && (
-                        <Link href={`/admin/orders/${e.orderId}`} className="tnum">
-                          {e.orderNumber}
-                        </Link>
-                      )}{' '}
-                      {e.message} <span className="muted small">by {e.raisedByName ?? 'system'}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-        <div className="stack" style={{ ['--stack' as string]: '18px' }}>
-          <section className="panel">
-            <h2 style={{ fontSize: '1.15rem' }}>Popular this week</h2>
-            {ov.popular.length === 0 ? (
-              <p className="muted">No orders yet this week.</p>
-            ) : (
-              <ol style={{ margin: 0, paddingLeft: 20 }}>
-                {ov.popular.map((p) => (
-                  <li key={p.name}>
-                    {p.name} <span className="muted">({p.qty})</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-          <section className="panel">
-            <h2 style={{ fontSize: '1.15rem' }}>Low stock</h2>
-            {ov.lowStock.length === 0 ? (
-              <p className="muted">No stock items at or below their reorder level{user.permissions.has('inventory.manage') ? '' : ''}.</p>
-            ) : (
-              <ul className="event-list">
-                {ov.lowStock.map((s) => (
-                  <li key={s.id}>
-                    <span className="tnum">
-                      {Number(s.quantity)} {s.unit}
-                    </span>
-                    <span>
-                      {s.name} <span className="muted small">(reorder at {Number(s.reorderLevel)})</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-          {user.permissions.has('support.manage') && (
-            <section className="panel">
-              <h2 style={{ fontSize: '1.15rem' }}>Support</h2>
-              <p>
-                <Link href="/admin/support">{ov.openCases} open case(s)</Link>
-              </p>
-            </section>
+                  </>
+                );
+                return <li key={i}>{n.href ? <Link href={n.href}>{inner}</Link> : <div>{inner}</div>}</li>;
+              })}
+            </ul>
           )}
-        </div>
+        </section>
       </div>
     </>
   );

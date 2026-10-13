@@ -80,7 +80,7 @@ export async function createOrder(
   // Validate delivery location up-front for a clear error.
   let zoneRes: ReturnType<typeof resolveZone> | null = null;
   if (input.fulfillment.type === 'delivery') {
-    zoneRes = resolveZone(zones, input.fulfillment, delivery.allowManualZoneSelection);
+    zoneRes = resolveZone(zones, input.fulfillment, delivery.allowManualZoneSelection, { lat: restaurant.lat, lng: restaurant.lng });
     if (!zoneRes.ok) throw conflict(ZONE_ERRORS[zoneRes.reason], { code: zoneRes.reason });
   }
 
@@ -89,7 +89,7 @@ export async function createOrder(
       ? { type: 'delivery' as const, lat: input.fulfillment.lat, lng: input.fulfillment.lng, zoneId: input.fulfillment.zoneId }
       : { type: 'pickup' as const };
 
-  const prelim = await quote({ items: input.items, fulfillment: fulfillmentForQuote, promoCode: input.promoCode }, { menu, ordering, delivery, zones, tz, at: now }, db);
+  const prelim = await quote({ items: input.items, fulfillment: fulfillmentForQuote, promoCode: input.promoCode }, { menu, ordering, delivery, zones, restaurant: { lat: restaurant.lat, lng: restaurant.lng }, tz, at: now }, db);
   const scheduleProblems = prelim.problems.filter((p) => p.code !== 'schedule');
   if (scheduleProblems.length) throw conflict('Some items in your cart need attention.', { problems: scheduleProblems });
   if (prelim.promoError) throw conflict(prelim.promoError, { code: 'promo' });
@@ -111,7 +111,7 @@ export async function createOrder(
       // Re-price at the booked time (item time windows) — this is the authoritative quote.
       const q = await quote(
         { items: input.items, fulfillment: fulfillmentForQuote, promoCode: input.promoCode },
-        { menu, ordering, delivery, zones, tz, at: slot.slotStart },
+        { menu, ordering, delivery, zones, restaurant: { lat: restaurant.lat, lng: restaurant.lng }, tz, at: slot.slotStart },
         t,
       );
       if (q.problems.length) throw conflict('Some items are not available at the selected time.', { problems: q.problems });

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LoginForm } from '@/components/LoginForm';
+import { BackLink } from '@/components/shop/BackLink';
 
 export const metadata: Metadata = { title: 'Sign in' };
 
@@ -8,6 +9,7 @@ export default async function CustomerLogin({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   return (
     <div className="wrap section" style={{ maxWidth: 460 }}>
+      <BackLink href="/menu" label="Back to menu" />
       <h1>Sign in</h1>
       <p className="muted">An account is optional. It keeps your order history in one place.</p>
       <div className="panel">

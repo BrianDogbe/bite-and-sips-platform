@@ -34,7 +34,24 @@ function beep() {
   }
 }
 
-export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = false }: { timezone: string; userName: string; canMarkSoldOut: boolean; readOnly?: boolean }) {
+export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, readOnly = false }: { timezone: string; userName: string; roleLabel?: string; canMarkSoldOut: boolean; readOnly?: boolean }) {
+  const [userMenu, setUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!userMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (!userMenuRef.current?.contains(e.target as Node)) setUserMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setUserMenu(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [userMenu]);
   const { data, status, error, lastSuccess, refresh } = useLive<KitchenQueue>({ url: '/api/kitchen/queue', topics: ['kitchen'], pollMs: 10000 });
   const [now, setNow] = useState(Date.now());
   const [sound, setSound] = useState(false);
@@ -45,6 +62,7 @@ export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = 
   const [issueFor, setIssueFor] = useState<Ticket | null>(null);
   const [issueText, setIssueText] = useState('');
   const [soldOutOpen, setSoldOutOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [menu, setMenu] = useState<{ id: number; name: string; orderable: boolean }[]>([]);
   const seen = useRef<Set<string> | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -76,11 +94,11 @@ export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = 
     seen.current = new Set([...(seen.current ?? []), ...ids]);
   }, [data, sound]);
 
-  async function act(t: Ticket, action: 'accept' | 'start' | 'ready' | 'recall' | 'collected') {
+  async function act(t: Ticket, action: 'accept' | 'start' | 'ready' | 'recall' | 'collected' | 'decline' | 'assign', note?: string, riderId?: string) {
     setBusy(t.id + action);
     try {
-      await postJson(`/api/kitchen/orders/${t.id}`, { action });
-      const labels = { accept: 'Accepted', start: 'Started', ready: 'Marked ready', recall: 'Recalled to preparing', collected: 'Handed to customer' };
+      await postJson(`/api/kitchen/orders/${t.id}`, { action, ...(note ? { note } : {}), ...(riderId ? { riderId } : {}) });
+      const labels = { assign: 'Rider assigned', decline: 'Declined', accept: 'Accepted', start: 'Started', ready: 'Marked ready', recall: 'Recalled to preparing', collected: 'Handed to customer' };
       setToast({ msg: `${t.orderNumber}: ${labels[action]}` });
     } catch (e) {
       setToast({ msg: `${t.orderNumber}: ${(e as Error).message}`, error: true });
@@ -95,6 +113,7 @@ export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = 
     try {
       await postJson('/api/kitchen/exceptions', { orderId: issueFor.id, kind: 'kitchen_issue', message: issueText });
       setToast({ msg: `Manager alerted about ${issueFor.orderNumber}` });
+      void refresh();
       setIssueFor(null);
       setIssueText('');
       dialog.current?.close();
@@ -151,6 +170,10 @@ export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = 
           </button>
         )}
         <span className="grow" />
+        <div className="kds-actions">
+        <button className={`btn sm${(data?.alerts.length ?? 0) > 0 ? ' has-alerts' : ''}`} aria-expanded={alertsOpen} onClick={() => setAlertsOpen((x) => !x)}>
+          <Icon name="alert" size={16} /> Reported problems ({data?.alerts.length ?? 0})
+        </button>
         {!readOnly && canMarkSoldOut && (
           <button
             className="btn sm"
@@ -171,16 +194,57 @@ export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = 
           <Icon name="refresh" size={16} /> Refresh
         </button>
         {!readOnly && (
-          <>
-            <span className="small" style={{ color: 'var(--muted)' }}>
-              {userName}
-            </span>
-            <LogoutButton to="/kitchen/login" />
-          </>
+          <div className="bar-menu kds-user" ref={userMenuRef}>
+            <button type="button" className="bar-user" aria-haspopup="menu" aria-expanded={userMenu} onClick={() => setUserMenu((m) => !m)}>
+              <span className="side-avatar" aria-hidden="true">{userName.trim().charAt(0).toUpperCase()}</span>
+              <span className="bar-user-text">
+                <strong>{userName}</strong>
+                {roleLabel && <span>{roleLabel}</span>}
+              </span>
+              <svg className="bar-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            {userMenu && (
+              <div className="bar-dropdown" role="menu">
+                <LogoutButton to="/kitchen/login" className="bar-dropdown-out" />
+              </div>
+            )}
+          </div>
         )}
+        </div>
       </div>
 
-      {!readOnly && !sound && <p style={{ margin: 0, padding: '6px 16px', background: 'var(--caramel-tint)', color: 'var(--espresso)', fontWeight: 700, fontSize: '0.9rem' }}>Tap “Sound off” to turn on the new-order chime. New orders also flash and show a banner.</p>}
+
+      {alertsOpen && (
+        <section className="kds-alerts" aria-labelledby="kds-alerts-h">
+          <div className="row between">
+            <h2 id="kds-alerts-h">
+              Reported problems <span className="count">{data?.alerts.length ?? 0}</span>
+            </h2>
+            <button className="btn sm" onClick={() => setAlertsOpen(false)}>
+              Close
+            </button>
+          </div>
+          {!data || data.alerts.length === 0 ? (
+            <p className="kds-empty">No problems reported. Use the <Icon name="alert" size={16} /> button on a ticket to alert a manager.</p>
+          ) : (
+            <ul className="kds-alert-list">
+              {data.alerts.map((a) => (
+                <li key={a.id}>
+                  <span className="kds-alert-ico" aria-hidden="true"><Icon name="alert" size={18} /></span>
+                  <div className="kds-alert-body">
+                    <strong>{a.orderNumber ?? 'General'}</strong>
+                    <span>{a.message}</span>
+                    <span className="small muted">
+                      {a.raisedByName ?? 'Kitchen'} · {formatLocalTime(a.raisedAt, timezone)}
+                    </span>
+                  </div>
+                  <span className="kds-alert-status">Waiting for a manager</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {soldOutOpen && (
         <div style={{ background: 'var(--white)', color: 'var(--charcoal)', border: '1px solid var(--border)', margin: 14, borderRadius: 12, padding: 14 }}>
@@ -222,7 +286,7 @@ export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = 
             <h2 id={`col-${c.key}`}>
               {c.title} <span className="count">{c.list.length}</span>
             </h2>
-            {c.list.length === 0 && <p style={{ color: 'var(--muted)' }}>{c.key === 'new' ? 'No new orders.' : 'Nothing here.'}</p>}
+            {c.list.length === 0 && <p className="kds-empty">{c.key === 'new' ? 'No new orders.' : 'Nothing here.'}</p>}
             {c.list.map((t) => {
               const late = isLate(t);
               const waiting = mins(t.placedAt, now);
@@ -263,6 +327,19 @@ export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = 
                     <span>{t.kitchenStatus === 'preparing' ? `Cooking ${prep ?? 0} min` : t.kitchenStatus === 'ready' ? `Ready ${mins(t.readyAt, now) ?? 0} min` : `Waiting ${waiting ?? 0} min`}</span>
                     <span style={{ color: late ? 'var(--status-urgent)' : undefined, fontWeight: late ? 800 : undefined }}>{t.kitchenStatus === 'ready' ? (t.fulfillmentType === 'delivery' ? (t.riderAssigned ? 'Rider assigned' : 'No rider yet') : 'Awaiting customer') : dueIn >= 0 ? `Due in ${dueIn} min` : `${-dueIn} min overdue`}</span>
                   </div>
+                  {!readOnly && data?.canAssign && t.fulfillmentType === 'delivery' && t.kitchenStatus === 'ready' && ['unassigned', 'assigned'].includes(t.fulfillmentStatus) && (
+                    <div className="kt-rider">
+                      <div className="kt-rider-head">
+                        <span className="kt-rider-title"><Icon name="bike" size={16} /> Rider</span>
+                        <span className={`kt-rider-state${t.riderName ? ' set' : ''}`}>{t.riderName ?? 'Not assigned'}</span>
+                      </div>
+                      <select id={`rd-${t.id}`} className="kt-rider-select" aria-label={`Rider for order ${t.orderNumber}`} defaultValue="" disabled={!!busy} onChange={(e) => { const v = e.target.value; if (v) { void act(t, 'assign', undefined, v); e.target.value = ''; } }}>
+                        <option value="">{t.riderName ? 'Change rider…' : 'Assign a rider now…'}</option>
+                        {(data?.riders ?? []).filter((r) => r.online).map((r) => <option key={r.id} value={r.id}>{r.name}{r.active ? ` (${r.active} active)` : ''}</option>)}
+                      </select>
+                      {(data?.riders ?? []).every((r) => !r.online) && <span className="kt-rider-note">No riders are online right now.</span>}
+                    </div>
+                  )}
                   {!readOnly && (
                     <div className="kt-actions">
                       {t.kitchenStatus === 'new' && (
@@ -270,7 +347,19 @@ export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = 
                           Accept
                         </button>
                       )}
-                      {(t.kitchenStatus === 'new' || t.kitchenStatus === 'accepted') && (
+                      {t.kitchenStatus === 'new' && (
+                        <button
+                          className="btn"
+                          disabled={!!busy}
+                          onClick={() => {
+                            const reason = window.prompt(`Why are you declining order ${t.orderNumber}? The customer will be told.`);
+                            if (reason && reason.trim()) void act(t, 'decline', reason.trim());
+                          }}
+                        >
+                          Decline
+                        </button>
+                      )}
+                      {t.kitchenStatus === 'accepted' && (
                         <button className="btn primary" disabled={!!busy} onClick={() => act(t, 'start')}>
                           Start cooking
                         </button>
@@ -297,6 +386,7 @@ export function KitchenDisplay({ timezone, userName, canMarkSoldOut, readOnly = 
                           dialog.current?.showModal();
                         }}
                         aria-label={`Report a problem with ${t.orderNumber}`}
+                        title="Report a problem to a manager"
                       >
                         <Icon name="alert" />
                       </button>

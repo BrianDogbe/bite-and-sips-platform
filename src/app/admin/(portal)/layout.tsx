@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { requirePagePerm } from '@/server/auth/current';
+import { adminAlerts } from '@/server/alerts';
+import { TabSignIn } from '@/components/TabSignIn';
 import { AdminShell, type NavItem } from '@/components/admin/AdminNav';
 import { ROLE_LABELS, type Permission } from '@/server/auth/permissions';
 
@@ -27,9 +29,11 @@ export default async function PortalLayout({ children }: { children: React.React
   const user = await requirePagePerm(['dashboard.view', 'menu.manage', 'dispatch.manage', 'orders.view'], '/admin/login');
   const items = NAV.filter((n) => user.permissions.has(n.perm)).map(({ perm: _p, ...n }) => (void _p, n));
   const roleLabel = user.roles.filter((r) => r !== 'customer').map((r) => ROLE_LABELS[r]).join(', ');
+  const alerts = await adminAlerts(user).catch(() => []);
   return (
     <div className="staff-body" style={{ minHeight: '100dvh' }}>
-      <AdminShell items={items} userName={user.fullName} roleLabel={roleLabel}>
+      <TabSignIn portal="admin" loginPath="/admin/login" />
+      <AdminShell items={items} userName={user.fullName} roleLabel={roleLabel} alerts={alerts}>
         {children}
       </AdminShell>
     </div>

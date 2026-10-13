@@ -4,9 +4,9 @@
  * (also documented in docs/PERMISSIONS.md). Every privileged server action calls
  * `requirePermission` — hiding buttons in the UI is never the only protection.
  */
-export const ROLES = ['owner', 'manager', 'kitchen', 'dispatcher', 'rider', 'support', 'customer'] as const;
+export const ROLES = ['owner', 'manager', 'kitchen', 'rider', 'customer'] as const;
 export type Role = (typeof ROLES)[number];
-export const STAFF_ROLES: Role[] = ['owner', 'manager', 'kitchen', 'dispatcher', 'rider', 'support'];
+export const STAFF_ROLES: Role[] = ['owner', 'manager', 'kitchen', 'rider'];
 
 export const PERMISSIONS = [
   'dashboard.view',
@@ -22,6 +22,7 @@ export const PERMISSIONS = [
   'kitchen.operate',
   'kitchen.monitor',
   'dispatch.manage',
+  'dispatch.assign', // pick an online rider for a delivery order (kitchen can do this from its screen)
   'rider.deliver',
   'customers.view',
   'customers.manage',
@@ -29,6 +30,8 @@ export const PERMISSIONS = [
   'finance.view',
   'reports.view',
   'settings.manage',
+  'settings.money', // payment switches, service charge, taxes, minimum order
+  'finance.manage', // record expenses
   'staff.manage',
   'support.manage',
   'audit.view',
@@ -36,15 +39,15 @@ export const PERMISSIONS = [
 export type Permission = (typeof PERMISSIONS)[number];
 
 const ALL = [...PERMISSIONS];
+const OWNER_ONLY: Permission[] = ['payments.refund', 'settings.money', 'finance.manage', 'audit.view'];
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   owner: ALL,
-  // Managers hold every permission, but `canGrantRole` stops them granting/revoking the owner role.
-  manager: ALL,
-  kitchen: ['kitchen.operate', 'menu.availability'],
-  dispatcher: ['dashboard.view', 'orders.view', 'dispatch.manage', 'kitchen.monitor'],
+  // Managers run the restaurant day to day. Money controls stay with the owner: refunds, payment/charge settings,
+  // recording expenses and the audit log. `canGrantRole` also stops them granting/revoking the owner role.
+  manager: ALL.filter((x) => !OWNER_ONLY.includes(x)),
+  kitchen: ['kitchen.operate', 'menu.availability', 'dispatch.assign'],
   rider: ['rider.deliver'],
-  support: ['dashboard.view', 'orders.view', 'orders.manage', 'customers.view', 'support.manage', 'cash.collect', 'kitchen.monitor'],
   customer: [],
 };
 
@@ -69,8 +72,6 @@ export const ROLE_LABELS: Record<Role, string> = {
   owner: 'Owner',
   manager: 'Manager',
   kitchen: 'Kitchen staff',
-  dispatcher: 'Dispatcher',
   rider: 'Rider',
-  support: 'Support / cashier',
   customer: 'Customer',
 };

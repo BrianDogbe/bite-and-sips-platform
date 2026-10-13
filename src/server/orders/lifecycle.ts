@@ -187,6 +187,19 @@ export async function cancelOrder(orderId: string, actor: Actor, opts: CancelOpt
   return res;
 }
 
+/**
+ * Kitchen declines an order it has not accepted yet (for example, out of an ingredient).
+ * Cancels the order with the stated reason; the customer is notified and a paid order is flagged
+ * for a refund decision. Only allowed before the kitchen accepts.
+ */
+export async function kitchenDecline(user: SessionUser | null, orderId: string, reason: string, db: Db = sql) {
+  requirePerm(user, 'kitchen.operate');
+  const [o] = await db<{ kitchenStatus: string; status: string }[]>`select kitchen_status, status from orders where id = ${orderId}`;
+  if (!o) throw invalid('Order not found.');
+  if (o.kitchenStatus !== 'new') throw conflict('Only new orders can be declined. Report a problem to a manager instead.');
+  return cancelOrder(orderId, actorOf(user), { reason: `Declined by the kitchen: ${reason.trim()}`, by: 'staff' }, db);
+}
+
 /** Staff cancellation (requires orders.cancel). */
 export async function staffCancelOrder(user: SessionUser | null, orderId: string, reason: string, db: Db = sql) {
   requirePerm(user, 'orders.cancel');

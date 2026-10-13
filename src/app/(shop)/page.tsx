@@ -83,11 +83,10 @@ export default async function Home() {
         <Image src="/brand/hero-bg.jpg" alt="" fill priority sizes="100vw" className="hero-bg" />
         <div className="wrap hero-inner">
           <div className="hero-copy">
-            <p className="hero-eyebrow">Sandwiches · Salads · Wraps · Sips</p>
             <h1 id="hero-title">
-              Good food.
+              Every Bite,
               <br />
-              Good mood.
+              Pure Delight
             </h1>
             <p className="hero-lede">{`Freshly made sandwiches, salads, wraps and sips from ${r.name}. Order for pickup or have it delivered.`}</p>
             {(activeClosure || !sf.ordering.acceptingOrders || !sf.openNow) && (
@@ -302,13 +301,13 @@ export default async function Home() {
                       <li key={z.id}>
                         <span className="zone-name">{z.name}</span>
                         <span className="zone-fee">
-                          {formatGHS(z.feePesewas)}
+                          {z.perKmPesewas ? `from ${formatGHS(z.feePesewas)} + ${formatGHS(z.perKmPesewas)}/km` : formatGHS(z.feePesewas)}
                           <small>{z.minOrderPesewas ? `min. ${formatGHS(z.minOrderPesewas)}` : 'no minimum'}</small>
                         </span>
                       </li>
                     ))}
                   </ul>
-                  <p className="muted small">Your fee is confirmed at checkout once we know where you are.</p>
+                  <p className="muted small">The delivery fee depends on how far you are from us — it’s confirmed at checkout once we know where you are.</p>
                 </>
               ) : (
                 <>

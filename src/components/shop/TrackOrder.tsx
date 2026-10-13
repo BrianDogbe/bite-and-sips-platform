@@ -8,6 +8,7 @@ import { CUSTOMER_STAGE_LABELS, type CustomerStage } from '@/lib/states';
 import { MapEmbed } from './MapEmbed';
 import { Icon } from '../Icon';
 import type { TrackingView } from '@/server/orders/queries';
+import { BackLink } from './BackLink';
 
 type View = TrackingView;
 
@@ -26,6 +27,7 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
   const [now, setNow] = useState(Date.now());
   const [payBusy, setPayBusy] = useState(false);
   const [payErr, setPayErr] = useState<string | null>(retryPay ? 'We couldn’t open the payment page. Please try again.' : null);
+  const [showAllUpdates, setShowAllUpdates] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -78,6 +80,7 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
     <>
       <section className="track-hero">
         <div className="wrap">
+      <BackLink href="/menu" label="Back to menu" light />
           <div className="row between">
             <p style={{ margin: 0 }}>
               Order <strong className="tnum">{o.orderNumber}</strong>
@@ -104,12 +107,22 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             {stage === 'cancelled' && (o.cancelReason ? `Reason: ${o.cancelReason}` : 'This order was cancelled.')}
             {stage === 'attention' && 'There’s a problem with the delivery. We’ll contact you, or you can reach us below.'}
           </p>
+          {stage !== 'cancelled' && stage !== 'attention' && (
+            <ol className="stepper" aria-label="Order progress">
+              {tl.map((st, i) => (
+                <li key={st} className={i < idx ? 'done' : i === idx ? 'current' : ''} aria-current={i === idx ? 'step' : undefined}>
+                  <span className="st-dot" aria-hidden="true">{i < idx || (i === idx && i === tl.length - 1) ? '✓' : ''}</span>
+                  <span className="st-label">{CUSTOMER_STAGE_LABELS[st]}</span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       </section>
 
       <div className="wrap section" style={{ paddingTop: 24 }}>
         {error && <p className="alert warn">{error}</p>}
-        {o.isTest && <p className="alert info">Test order: paid with the simulated payment provider.</p>}
+        {o.isTest && <p className="track-test">Test order · simulated payment</p>}
         {fromPayment && o.status === 'pending_payment' && o.paymentStatus !== 'failed' && (
           <p className="alert info" role="status">
             We’re waiting for the payment provider to confirm your payment. This page updates automatically. Mobile Money approvals can take a minute.
@@ -144,13 +157,38 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
               </section>
             )}
 
-            {v.pin && (
-              <section className="panel" aria-labelledby="pin-h">
-                <h2 id="pin-h">Your delivery PIN</h2>
-                <p className="pin" aria-label={`PIN ${v.pin.split('').join(' ')}`}>
-                  {v.pin}
-                </p>
-                <p className="muted">Give this PIN to the rider only when you receive your food. Our staff will never ask for it by phone.</p>
+            {o.fulfillmentType === 'delivery' && o.status !== 'cancelled' && (
+              <section className="panel pickup-card" aria-labelledby="deliv-h">
+                <h2 id="deliv-h" className="visually-hidden">Delivery</h2>
+                {v.pin ? (
+                  <div className="pk-code">
+                    <span>Your delivery PIN</span>
+                    <strong className="tnum" aria-label={`PIN ${v.pin.split('').join(' ')}`}>{v.pin}</strong>
+                    <small>Give it to the rider only when you receive your food. We’ll never ask for it by phone.</small>
+                  </div>
+                ) : (
+                  <div className="pk-code">
+                    <span>Your order number</span>
+                    <strong className="tnum">{o.orderNumber}</strong>
+                    <small>Your delivery PIN appears here once a rider is assigned</small>
+                  </div>
+                )}
+                <dl className="pk-meta">
+                  <div>
+                    <dt>Expected</dt>
+                    <dd>
+                      {promised}
+                      {o.isAsap && <small>Around this time</small>}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Deliver to</dt>
+                    <dd>
+                      {v.fulfillment.addressLine || v.fulfillment.zoneName || '—'}
+                      {v.fulfillment.landmark && <small>{v.fulfillment.landmark}</small>}
+                    </dd>
+                  </div>
+                </dl>
               </section>
             )}
 
@@ -201,51 +239,51 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             )}
 
             {o.fulfillmentType === 'pickup' && o.status !== 'cancelled' && (
-              <section className="panel">
-                <h2>Pickup</h2>
-                <dl className="kv">
-                  <dt>Pickup time</dt>
-                  <dd>
-                    {promised}
-                    {o.isAsap ? ' (earliest available)' : ''}
-                  </dd>
-                  <dt>Where</dt>
-                  <dd>{v.restaurant.addressLine || v.restaurant.name}</dd>
-                  <dt>Show this</dt>
-                  <dd className="tnum">{o.orderNumber}</dd>
+              <section className="panel pickup-card">
+                <div className="pk-code">
+                  <span>Your order number</span>
+                  <strong className="tnum">{o.orderNumber}</strong>
+                  <small>Show this at the counter</small>
+                </div>
+                <dl className="pk-meta">
+                  <div>
+                    <dt>Pickup time</dt>
+                    <dd>
+                      {promised}
+                      {o.isAsap && <small>Earliest available</small>}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Where</dt>
+                    <dd>{v.restaurant.addressLine || v.restaurant.name}</dd>
+                  </div>
                 </dl>
-                <p className="muted" style={{ marginTop: 10 }}>
-                  {v.restaurant.pickupInstructions}
-                </p>
+                {v.restaurant.pickupInstructions && <p className="muted pk-note">{v.restaurant.pickupInstructions}</p>}
               </section>
             )}
 
             <section className="panel" aria-labelledby="progress-h">
-              <h2 id="progress-h">Progress</h2>
-              {stage === 'cancelled' || stage === 'attention' ? (
-                <p>{CUSTOMER_STAGE_LABELS[stage]}</p>
-              ) : (
-                <ol className="timeline">
-                  {tl.map((s, i) => (
-                    <li key={s} className={i < idx ? 'done' : i === idx ? 'current' : ''} aria-current={i === idx ? 'step' : undefined}>
-                      <span>{CUSTOMER_STAGE_LABELS[s]}</span>
-                    </li>
-                  ))}
-                </ol>
-              )}
+              <h2 id="progress-h">Activity</h2>
+              {(stage === 'cancelled' || stage === 'attention') && <p className="alert warn">{CUSTOMER_STAGE_LABELS[stage]}</p>}
+              {v.notifications.length === 0 && <p className="muted">Updates will appear here as your order moves along.</p>}
               {v.notifications.length > 0 && (
                 <>
-                  <h3 style={{ marginTop: 16 }}>Updates</h3>
-                  <ul className="event-list">
-                    {[...v.notifications].reverse().map((n) => (
-                      <li key={n.id}>
-                        <span className="muted tnum">{formatLocalTime(n.createdAt, tz)}</span>
-                        <span>
-                          <strong>{n.title}.</strong> {n.body.replace(/Track( it)? here:? \S+|Track: \S+|tracking page: \S+/g, '').trim()}
-                        </span>
+                                    <ol className="upd-list">
+                    {[...v.notifications].reverse().slice(0, showAllUpdates ? undefined : 3).map((n, i) => (
+                      <li key={n.id} className={i === 0 ? 'latest' : ''}>
+                        <div className="upd-top">
+                          <strong>{n.title.replace(/\.$/, '')}</strong>
+                          <time className="tnum">{formatLocalTime(n.createdAt, tz)}</time>
+                        </div>
+                        <p>{n.body.replace(/Track( it)? here:? \S+|Track: \S+|tracking page: \S+/g, '').replace(/^Bite & Sips:\s*/, '').trim()}</p>
                       </li>
                     ))}
-                  </ul>
+                  </ol>
+                  {v.notifications.length > 3 && (
+                    <button type="button" className="upd-more" onClick={() => setShowAllUpdates((x) => !x)}>
+                      {showAllUpdates ? 'Show fewer' : `Show all ${v.notifications.length} updates`}
+                    </button>
+                  )}
                 </>
               )}
             </section>

@@ -155,7 +155,7 @@ test('delivery: inside zone priced by smallest zone; outside zone rejected; mini
 
 test('cash pickup flow: goes straight to kitchen; collection requires cash recorded and food ready', async () => {
   const kitchen = await makeUser(['kitchen']);
-  const cashier = await makeUser(['support']);
+  const cashier = await makeUser(['manager']);
   const r = await createOrder(orderInput(fx, { paymentMethod: 'cash' }), { user: null, ip: '5.5.5.5' });
   let o = await orderRow(r.orderId);
   assert.equal(o.status, 'placed');
@@ -231,4 +231,30 @@ test('staff cancel requires permission and records audit', async () => {
   const a = await sql`select * from audit_events where action = 'order.cancelled' and entity_id = ${r.orderId}`;
   assert.equal(a.length, 1);
   void cancelOrder;
+});
+
+test('delivery fee varies with distance from the restaurant; flat zones stay flat; cap applies', async () => {
+  await sql`update delivery_zones set fee_pesewas = 800, per_km_pesewas = 200, max_fee_pesewas = 1500 where name = 'Outer'`;
+  const items = [{ menuItemId: fx.jollofId, variantId: fx.jollofLarge, modifierIds: [], quantity: 1 }];
+  const at = (km: number) => ({ type: 'delivery' as const, lat: RESTAURANT.lat + km / 111.2, lng: RESTAURANT.lng });
+  // 4 km out: inside Outer only (Inner radius is 3 km) → 800 + 4×200 = 1600, capped at 1500
+  const far = await quote({ items, fulfillment: at(4) });
+  assert.equal(far.zone?.name, 'Outer');
+  assert.equal(far.deliveryFeePesewas, 1500);
+  assert.equal(far.zone?.feeEstimated, false);
+  // 2 km out: Inner zone, flat GH₵10
+  const near = await quote({ items, fulfillment: at(2) });
+  assert.equal(near.zone?.name, 'Inner');
+  assert.equal(near.deliveryFeePesewas, 1000);
+  // Make Inner distance-based too, then closer addresses cost less than farther ones
+  await sql`update delivery_zones set fee_pesewas = 500, per_km_pesewas = 300, max_fee_pesewas = null where name = 'Inner'`;
+  const a = await quote({ items, fulfillment: at(1) });
+  const b = await quote({ items, fulfillment: at(2.5) });
+  assert.equal(a.deliveryFeePesewas, 800);
+  assert.equal(b.deliveryFeePesewas, 1250);
+  assert.ok(b.deliveryFeePesewas > a.deliveryFeePesewas);
+  // Manual area choice (no GPS) is flagged as an estimate
+  const zones = await sql<{ id: number }[]>`select id from delivery_zones where name = 'Inner'`;
+  const manual = await quote({ items, fulfillment: { type: 'delivery', zoneId: zones[0].id } });
+  assert.equal(manual.zone?.feeEstimated, true);
 });

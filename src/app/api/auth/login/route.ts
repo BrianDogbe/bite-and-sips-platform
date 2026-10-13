@@ -8,9 +8,9 @@ import type { Role } from '@/server/auth/permissions';
 export const dynamic = 'force-dynamic';
 
 const PORTAL_ROLES: Record<string, Role[]> = {
-  admin: ['owner', 'manager', 'dispatcher', 'support'],
+  admin: ['owner', 'manager'],
   kitchen: ['owner', 'manager', 'kitchen'],
-  rider: ['rider'],
+  rider: ['owner', 'rider'],
   customer: ['customer'],
 };
 

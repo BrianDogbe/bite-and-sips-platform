@@ -11,7 +11,7 @@ export function ShopHeader({ name }: { name: string }) {
   const { count, ready } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const home = path === '/' || path === '/menu';
+  const home = path === '/' || path === '/menu' || path === '/about';
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 process.env.APP_SECRET ??= 'unit-secret-unit-secret-unit-secret-0123456789';
 process.env.DATABASE_URL ??= 'postgres://unused';
 import { candidateSlots, computeSlots, isOpenAt, intervalsForLocalDay } from '@/server/scheduling';
-import { resolveZone, haversineM } from '@/server/zones';
+import { resolveZone, haversineM, deliveryFeeFor } from '@/server/zones';
 import { evaluatePromotion } from '@/server/pricing';
 import { zonedToUtc, localParts } from '@/lib/time';
 import { percentOf, parseCedisToPesewas, pesewasToCedisString } from '@/lib/money';
@@ -56,7 +56,7 @@ test('no hours → no slots; split shifts supported', () => {
 });
 
 test('zones: smallest containing zone wins; outside rejected; manual unverified', () => {
-  const z = (id: number, r: number, fee: number) => ({ id, name: `Z${id}`, description: null, centerLat: 5.6, centerLng: -0.18, radiusM: r, feePesewas: fee, minOrderPesewas: 0, etaMinMinutes: null, etaMaxMinutes: null, isActive: true, sortOrder: 0, isDemo: false });
+  const z = (id: number, r: number, fee: number) => ({ id, name: `Z${id}`, description: null, centerLat: 5.6, centerLng: -0.18, radiusM: r, feePesewas: fee, perKmPesewas: 0, maxFeePesewas: null, minOrderPesewas: 0, etaMinMinutes: null, etaMaxMinutes: null, isActive: true, sortOrder: 0, isDemo: false });
   const zones = [z(1, 8000, 2000), z(2, 3000, 1000)];
   const near = resolveZone(zones, { lat: 5.61, lng: -0.18 }, true);
   assert.ok(near.ok && near.zone.id === 2 && near.verified);
@@ -65,6 +65,27 @@ test('zones: smallest containing zone wins; outside rejected; manual unverified'
   assert.ok(man.ok && !man.verified);
   assert.deepEqual(resolveZone(zones, { zoneId: 1 }, false), { ok: false, reason: 'manual_zone_disabled' });
   assert.ok(Math.abs(haversineM(5.6, -0.18, 5.61, -0.18) - 1112) < 5);
+});
+
+test('delivery fee: flat when no per-km rate; otherwise base + per-km × distance, rounded up to 50p and capped', () => {
+  const flat = { feePesewas: 1500, perKmPesewas: 0, maxFeePesewas: null };
+  assert.equal(deliveryFeeFor(flat, 0), 1500);
+  assert.equal(deliveryFeeFor(flat, 9000), 1500);
+  const z = { feePesewas: 800, perKmPesewas: 200, maxFeePesewas: 4000 };
+  assert.equal(deliveryFeeFor(z, 0), 800);
+  assert.equal(deliveryFeeFor(z, 1000), 1000);
+  assert.equal(deliveryFeeFor(z, 3000), 1400);
+  assert.equal(deliveryFeeFor(z, 3100), 1450); // 800 + 620 = 1420 → 1450
+  assert.equal(deliveryFeeFor(z, 50_000), 4000); // capped
+  assert.equal(deliveryFeeFor({ ...z, maxFeePesewas: null }, 50_000), 10_800);
+  const zones = [{ id: 1, name: 'T', description: null, centerLat: 5.6, centerLng: -0.18, radiusM: 8000, ...z, minOrderPesewas: 0, etaMinMinutes: null, etaMaxMinutes: null, isActive: true, sortOrder: 0, isDemo: false }];
+  // distance is measured from the restaurant origin, not the zone centre
+  const gps = resolveZone(zones, { lat: 5.63, lng: -0.18 }, true, { lat: 5.6, lng: -0.18 });
+  assert.ok(gps.ok && gps.verified && !gps.feeEstimated && Math.abs(gps.feeDistanceM - 3336) < 10);
+  const noOrigin = resolveZone(zones, { lat: 5.63, lng: -0.18 }, true, { lat: null, lng: null });
+  assert.ok(noOrigin.ok && Math.abs(noOrigin.feeDistanceM - 3336) < 10);
+  const man = resolveZone(zones, { zoneId: 1 }, true);
+  assert.ok(man.ok && man.feeEstimated && man.feeDistanceM === 4000);
 });
 
 test('money: exact parsing and rounding', () => {
@@ -101,11 +122,18 @@ test('state machines reject illegal transitions', () => {
 test('permission matrix: least privilege', () => {
   assert.equal(can(['kitchen'], 'finance.view'), false);
   assert.equal(can(['kitchen'], 'customers.view'), false);
-  assert.equal(can(['dispatcher'], 'settings.manage'), false);
-  assert.equal(can(['dispatcher'], 'payments.refund'), false);
+  assert.equal(can(['rider'], 'settings.manage'), false);
+  assert.equal(can(['kitchen'], 'payments.refund'), false);
   assert.equal(can(['rider'], 'orders.view'), false);
-  assert.equal(can(['support'], 'payments.refund'), false);
-  assert.equal(can(['manager'], 'payments.refund'), true);
+  assert.equal(can(['rider'], 'payments.refund'), false);
+  assert.equal(can(['manager'], 'payments.refund'), false);
+  assert.equal(can(['manager'], 'audit.view'), false);
+  assert.equal(can(['manager'], 'settings.money'), false);
+  assert.equal(can(['manager'], 'finance.manage'), false);
+  assert.equal(can(['manager'], 'finance.view'), true);
+  assert.equal(can(['manager'], 'settings.manage'), true);
+  assert.equal(can(['owner'], 'payments.refund'), true);
+  assert.equal(can(['owner'], 'audit.view'), true);
   assert.equal(canGrantRole(['manager'], 'owner'), false);
   assert.equal(canGrantRole(['owner'], 'owner'), true);
   assert.equal(permissionsFor(['customer']).size, 0);

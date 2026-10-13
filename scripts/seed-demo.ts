@@ -59,14 +59,12 @@ const MENU: { name: string; description: string; items: DemoItem[] }[] = [
         price: 3800,
         prep: 10,
         featured: true,
-        groups: [{ name: 'Extras', min: 0, max: 2, mods: [['Extra chicken', 1200], ['Extra sauce', 300]] }],
       },
       {
         name: 'Beef Shawarma',
         description: 'Grilled wrap filled with seasoned beef, fresh vegetables and our signature sauce. (Demo item — placeholder price.)',
         price: 4500,
         prep: 12,
-        groups: [{ name: 'Extras', min: 0, max: 2, mods: [['Extra beef', 1500], ['Extra sauce', 300]] }],
       },
     ],
   },
@@ -86,7 +84,6 @@ const MENU: { name: string; description: string; items: DemoItem[] }[] = [
           ['Single', 3500],
           ['Double', 6000],
         ],
-        groups: [{ name: 'Extras', min: 0, max: 3, mods: [['Extra egg', 500], ['Extra tuna', 1000], ['Cheese slice', 500]] }],
       },
       {
         name: 'Egg & Chicken Loaded Sandwich',
@@ -116,7 +113,6 @@ const MENU: { name: string; description: string; items: DemoItem[] }[] = [
         ],
         groups: [
           { name: 'Dressing', min: 1, max: 1, mods: [['Signature sauce', 0], ['No dressing', 0]] },
-          { name: 'Extras', min: 0, max: 3, mods: [['Extra egg', 500], ['Extra chicken', 1200]] },
         ],
       },
     ],
@@ -253,14 +249,13 @@ async function main() {
 
       const zones = await t`select 1 from delivery_zones limit 1`;
       if (!zones.length) {
-        // Placeholder centre (central Accra). Replace with the restaurant's real location and zones.
-        const c = { lat: 5.6037, lng: -0.187 };
-        await t`insert into delivery_zones (name, description, center_lat, center_lng, radius_m, fee_pesewas, min_order_pesewas, eta_min_minutes, eta_max_minutes, sort_order, is_demo)
-                values ('Zone A (demo, within 3 km)', 'Placeholder zone', ${c.lat}, ${c.lng}, 3000, 1500, 0, 25, 40, 1, true),
-                       ('Zone B (demo, 3–7 km)', 'Placeholder zone', ${c.lat}, ${c.lng}, 7000, 2500, 5000, 35, 55, 2, true)`;
+        // Placeholder: one zone covering anywhere in Tema (approximate centre, 7 km). Check it against a map and adjust in Admin.
+        const c = { lat: 5.6698, lng: -0.0166 };
+        await t`insert into delivery_zones (name, description, center_lat, center_lng, radius_m, fee_pesewas, per_km_pesewas, max_fee_pesewas, min_order_pesewas, eta_min_minutes, eta_max_minutes, sort_order, is_demo)
+                values ('Tema', 'Delivery anywhere in Tema', ${c.lat}, ${c.lng}, 7000, 800, 200, 4000, 0, 25, 45, 1, true)`;
         await t`insert into settings (key, value) values ('restaurant', ${t.json({ isConfigured: false, name: 'Bite & Sips', tagline: 'Good food. Good mood.', phone: '+233 24 469 3556', addressLine: 'Tema C7', lat: c.lat, lng: c.lng, timezone: 'Africa/Accra' })})
                 on conflict (key) do nothing`;
-        console.log('✓ placeholder delivery zones around central Accra — replace in Admin → Settings → Delivery zones');
+        console.log('✓ placeholder delivery zone covering Tema — check and replace in Admin → Settings → Delivery zones');
       }
       await t`insert into settings (key, value) values ('ordering', ${t.json({ cashOnPickupEnabled: true })}) on conflict (key) do nothing`;
 
@@ -269,9 +264,7 @@ async function main() {
         const people: [string, string, string[]][] = [
           ['Demo Owner', 'owner@demo.local', ['owner']],
           ['Demo Kitchen', 'kitchen@demo.local', ['kitchen']],
-          ['Demo Dispatcher', 'dispatch@demo.local', ['dispatcher']],
           ['Demo Rider', 'rider@demo.local', ['rider']],
-          ['Demo Cashier', 'cashier@demo.local', ['support']],
         ];
         for (const [name, email, roles] of people) {
           const ex = await t`select 1 from users where lower(email) = ${email}`;

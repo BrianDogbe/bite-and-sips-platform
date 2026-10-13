@@ -5,7 +5,9 @@ import type { SessionUser } from './auth/sessions';
 import { getSettings } from './settings';
 import { zonedToUtc, localParts } from '@/lib/time';
 import { lowStock } from './inventory';
-import { invalid } from './errors';
+import { invalid, notFound } from './errors';
+import { audit } from './audit';
+import { actorOf } from './auth/guard';
 
 /**
  * Reporting. Every metric has an explicit definition (also shown in the UI and docs/REPORTS.md).
@@ -107,11 +109,20 @@ export async function paymentsList(user: SessionUser | null, from: Date, to: Dat
 }
 
 export async function addExpense(user: SessionUser | null, args: { incurredOn: string; category: string; description?: string | null; amountPesewas: number }, db: Db = sql) {
-  requirePerm(user, 'finance.view');
+  requirePerm(user, 'finance.manage');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(args.incurredOn)) throw invalid('Invalid date.');
   if (!args.category?.trim()) throw invalid('Category is required.');
   if (!Number.isSafeInteger(args.amountPesewas) || args.amountPesewas <= 0) throw invalid('Amount must be positive.');
   await db`insert into expenses (incurred_on, category, description, amount_pesewas, created_by) values (${args.incurredOn}, ${args.category.trim()}, ${args.description ?? null}, ${args.amountPesewas}, ${user!.id})`;
+}
+
+export async function removeExpense(user: SessionUser | null, id: number, db: Db = sql) {
+  requirePerm(user, 'finance.manage');
+  if (!Number.isInteger(id) || id <= 0) throw invalid('Invalid expense.');
+  const [row] = await db<{ incurredOn: Date; category: string; description: string | null; amountPesewas: number }[]>`
+    delete from expenses where id = ${id} returning incurred_on, category, description, amount_pesewas`;
+  if (!row) throw notFound('Expense');
+  await audit(db, actorOf(user), 'finance.expense_removed', 'expense', id, { category: row.category, description: row.description, amountPesewas: row.amountPesewas, incurredOn: row.incurredOn });
 }
 
 export async function listExpenses(user: SessionUser | null, from: Date, to: Date, db: Db = sql) {
