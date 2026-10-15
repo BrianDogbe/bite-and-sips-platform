@@ -9,6 +9,7 @@ import { fulfillmentTone, labelFulfillment, labelKitchen } from '@/lib/status-ui
 import { MapEmbed, directionsUrl } from '../shop/MapEmbed';
 import type { DispatchRow } from '@/server/orders/queries';
 import type { RiderStatus } from '@/server/fulfillment/inhouse';
+import { OPTGROUP, OPT_LEGEND } from '../ui';
 
 interface Board {
   serverTime: string;
@@ -212,8 +213,8 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
 
             {/* Assign / reassign rider */}
             {['unassigned', 'assigned', 'accepted', 'at_restaurant'].includes(sel.fulfillmentStatus) && (sel.method === 'in_house' || !sel.method) && (
-              <fieldset className="optgroup" style={{ margin: 0 }}>
-                <legend>{sel.riderUserId ? 'Reassign rider' : 'Assign a rider'}</legend>
+              <fieldset className={OPTGROUP} style={{ margin: 0 }}>
+                <legend className={OPT_LEGEND}>{sel.riderUserId ? 'Reassign rider' : 'Assign a rider'}</legend>
                 <select className="select" value={f('rider')} onChange={(e) => set('rider', e.target.value)} aria-label="Rider">
                   <option value="">Choose a rider…</option>
                   {data?.riders
@@ -252,8 +253,8 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
 
             {/* Third-party partners */}
             {sel.fulfillmentStatus === 'unassigned' && (
-              <fieldset className="optgroup" style={{ margin: 0 }}>
-                <legend>Use a delivery partner</legend>
+              <fieldset className={OPTGROUP} style={{ margin: 0 }}>
+                <legend className={OPT_LEGEND}>Use a delivery partner</legend>
                 {data?.partners.filter((p) => p.capabilities.createDelivery).map((p) => (
                   <button key={p.key} className="btn block" style={{ marginBottom: 8 }} disabled={busy} onClick={() => run({ action: 'partner_request', provider: p.key, idempotencyKey: key() }, `Requested from ${p.label}.`)}>
                     Book {p.label}
@@ -275,8 +276,8 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
             )}
 
             {sel.bookingStatus === 'unknown' && sel.bookingId && (
-              <fieldset className="optgroup" style={{ margin: 0 }}>
-                <legend>Reconcile partner booking</legend>
+              <fieldset className={OPTGROUP} style={{ margin: 0 }}>
+                <legend className={OPT_LEGEND}>Reconcile partner booking</legend>
                 <p className="small">The partner didn’t respond, so we don’t know if the delivery was booked. Check the partner’s app/dashboard before booking again.</p>
                 <button className="btn block" disabled={busy} onClick={() => run({ action: 'partner_reconcile', bookingId: sel.bookingId }, 'Checked with partner.')}>
                   Ask the partner
@@ -294,8 +295,8 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
             )}
 
             {(sel.method === 'third_party' || sel.method === 'manual_partner') && !['delivered', 'cancelled', 'unassigned'].includes(sel.fulfillmentStatus) && (
-              <fieldset className="optgroup" style={{ margin: 0 }}>
-                <legend>Partner delivery status {sel.method === 'manual_partner' ? '(entered manually)' : ''}</legend>
+              <fieldset className={OPTGROUP} style={{ margin: 0 }}>
+                <legend className={OPT_LEGEND}>Partner delivery status {sel.method === 'manual_partner' ? '(entered manually)' : ''}</legend>
                 <select className="select" value={f('pstatus')} onChange={(e) => set('pstatus', e.target.value)} aria-label="New status">
                   <option value="">Update status…</option>
                   <option value="courier_assigned">Courier assigned</option>
@@ -327,8 +328,8 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
             )}
 
             {sel.method === 'in_house' && ['picked_up', 'on_the_way', 'arrived'].includes(sel.fulfillmentStatus) && (
-              <fieldset className="optgroup" style={{ margin: 0 }}>
-                <legend>Delivery problems</legend>
+              <fieldset className={OPTGROUP} style={{ margin: 0 }}>
+                <legend className={OPT_LEGEND}>Delivery problems</legend>
                 <input className="input" placeholder="Reason (required)" value={f('oreason')} onChange={(e) => set('oreason', e.target.value)} />
                 <div className="row" style={{ marginTop: 8 }}>
                   <button className="btn" disabled={busy || f('oreason').length < 5} onClick={() => run({ action: 'override', reason: f('oreason') }, 'Delivery confirmed without PIN.')}>
@@ -343,8 +344,8 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
             )}
 
             {['failed', 'returned'].includes(sel.fulfillmentStatus) && (
-              <fieldset className="optgroup" style={{ margin: 0 }}>
-                <legend>After a failed delivery</legend>
+              <fieldset className={OPTGROUP} style={{ margin: 0 }}>
+                <legend className={OPT_LEGEND}>After a failed delivery</legend>
                 <input className="input" placeholder="Note" value={f('fnote')} onChange={(e) => set('fnote', e.target.value)} />
                 <div className="row" style={{ marginTop: 8 }}>
                   <button className="btn leaf" disabled={busy} onClick={() => run({ action: 'resolve_failed', next: 'unassigned', reason: f('fnote') || 'Reattempt' }, 'Back in the dispatch queue for another attempt.')}>

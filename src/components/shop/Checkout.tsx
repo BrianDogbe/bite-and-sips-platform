@@ -8,6 +8,10 @@ import { formatLocalTime, localDateKey } from '@/lib/time';
 import { postJson } from '@/lib/use-live';
 import { matchAreas } from '@/lib/tema-areas';
 import { Icon } from '../Icon';
+import { OPTGROUP, OPT_LEGEND, OPT, QTY, QTY_BTN, QTY_OUT, PRICE, CART_LINE, MODS, TOTALS, TOTAL_LINE, TOTAL_GRAND, TWO_COL, SIDEBAR } from '../ui';
+
+const SEG =
+  'min-h-10 cursor-pointer rounded-full border-0 bg-transparent px-[18px] font-[family-name:var(--font-body)] text-[0.98rem] font-bold leading-normal text-espresso aria-pressed:bg-espresso aria-pressed:text-white';
 import { ItemSheet } from './ItemSheet';
 import type { ClientMenuItem } from './types';
 
@@ -343,7 +347,7 @@ export function Checkout({
   const editingItem = editing ? menuItems.find((m) => m.id === editing.menuItemId) ?? null : null;
 
   return (
-    <form onSubmit={submit} noValidate className="checkout-grid">
+    <form onSubmit={submit} noValidate className={TWO_COL}>
       <div className="stack" style={{ ['--stack' as string]: '20px' }}>
         {!ordering.acceptingOrders && <p className="alert warn">{ordering.pauseMessage}</p>}
 
@@ -352,7 +356,7 @@ export function Checkout({
             <h2 id="h-items" style={{ margin: 0 }}>
               Your order <span className="dsp-count">{cart.lines.length}</span>
             </h2>
-            <Link href="/menu" className="btn sm add-more">
+            <Link href="/menu" className="btn sm gap-1.5 font-bold no-underline">
               <Icon name="plus" size={16} /> Add more
             </Link>
           </div>
@@ -360,12 +364,12 @@ export function Checkout({
             const server = priceByIndex.get(i);
             const changed = server && server.unitPricePesewas !== l.unitPricePesewas;
             return (
-              <div key={l.key} className="cart-line">
+              <div key={l.key} className={CART_LINE}>
                 <div>
                   <strong>{l.name}</strong>
                   {l.variantName && <span className="muted"> ({l.variantName})</span>}
-                  {l.modifierNames.length > 0 && <div className="mods">{l.modifierNames.join(', ')}</div>}
-                  {l.instructions && <div className="mods">Note: {l.instructions}</div>}
+                  {l.modifierNames.length > 0 && <div className={MODS}>{l.modifierNames.join(', ')}</div>}
+                  {l.instructions && <div className={MODS}>Note: {l.instructions}</div>}
                   {problemsByIndex.get(i) && (
                     <p className="field-error" role="alert">
                       {problemsByIndex.get(i)}
@@ -373,12 +377,12 @@ export function Checkout({
                   )}
                   {changed && <p className="hint">Price updated to {formatGHS(server.unitPricePesewas)} each.</p>}
                   <div className="row" style={{ marginTop: 8 }}>
-                    <div className="qty" role="group" aria-label={`Quantity of ${l.name}`}>
-                      <button type="button" onClick={() => cart.update(l.key, { quantity: l.quantity - 1 })} aria-label="Decrease">
+                    <div className={QTY} role="group" aria-label={`Quantity of ${l.name}`}>
+                      <button type="button" className={QTY_BTN} onClick={() => cart.update(l.key, { quantity: l.quantity - 1 })} aria-label="Decrease">
                         <Icon name="minus" size={16} />
                       </button>
-                      <output>{l.quantity}</output>
-                      <button type="button" onClick={() => cart.update(l.key, { quantity: Math.min(ordering.maxItemQuantity, l.quantity + 1) })} aria-label="Increase">
+                      <output className={QTY_OUT}>{l.quantity}</output>
+                      <button type="button" className={QTY_BTN} onClick={() => cart.update(l.key, { quantity: Math.min(ordering.maxItemQuantity, l.quantity + 1) })} aria-label="Increase">
                         <Icon name="plus" size={16} />
                       </button>
                     </div>
@@ -392,7 +396,7 @@ export function Checkout({
                     </button>
                   </div>
                 </div>
-                <div className="price">{formatGHS(server ? server.lineTotalPesewas : l.unitPricePesewas * l.quantity)}</div>
+                <div className={PRICE}>{formatGHS(server ? server.lineTotalPesewas : l.unitPricePesewas * l.quantity)}</div>
               </div>
             );
           })}
@@ -400,14 +404,14 @@ export function Checkout({
 
         <section className="panel" aria-labelledby="h-ful">
           <h2 id="h-ful">Pickup or delivery</h2>
-          <div className="seg" role="group" aria-label="Fulfillment">
+          <div className="inline-flex gap-1 rounded-full bg-ivory-2 p-1" role="group" aria-label="Fulfillment">
             {ordering.pickupEnabled && (
-              <button type="button" aria-pressed={type === 'pickup'} onClick={() => setType('pickup')}>
+              <button type="button" className={SEG} aria-pressed={type === 'pickup'} onClick={() => setType('pickup')}>
                 <Icon name="store" size={18} /> Pickup
               </button>
             )}
             {ordering.deliveryEnabled && zones.length > 0 && (
-              <button type="button" aria-pressed={type === 'delivery'} onClick={() => setType('delivery')}>
+              <button type="button" className={SEG} aria-pressed={type === 'delivery'} onClick={() => setType('delivery')}>
                 <Icon name="bike" size={18} /> Delivery
               </button>
             )}
@@ -449,7 +453,7 @@ export function Checkout({
                   </p>
                 )}
                 {!loc && ordering.allowManualZone && locFailed && (
-                  <div className="field area-ahead" style={{ marginTop: 8 }}>
+                  <div className="field relative" style={{ marginTop: 8 }}>
                     <label htmlFor="area">Type your area</label>
                     <input
                       id="area"
@@ -467,11 +471,12 @@ export function Checkout({
                       }}
                     />
                     {!areaPicked && matchAreas(areaQuery).length > 0 && (
-                      <ul id="area-list" role="listbox" className="area-list">
+                      <ul id="area-list" role="listbox" className="m-0 mt-1 list-none rounded-xl border border-[var(--line-strong)] bg-white p-1 shadow-[0_8px_24px_rgba(53,37,31,0.12)]">
                         {matchAreas(areaQuery).map((name) => (
                           <li key={name} role="option" aria-selected={false}>
                             <button
                               type="button"
+                              className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border-0 bg-transparent px-3 py-2.5 text-left text-[var(--ink)] [font:inherit] hover:bg-[var(--sage-tint)] focus-visible:bg-[var(--sage-tint)] focus-visible:outline-none"
                               onClick={() => {
                                 setAreaPicked(name);
                                 setAreaQuery(name);
@@ -481,7 +486,7 @@ export function Checkout({
                               }}
                             >
                               {name}
-                              <small>Tema</small>
+                              <small className="text-muted">Tema</small>
                             </button>
                           </li>
                         ))}
@@ -510,9 +515,9 @@ export function Checkout({
             </div>
           )}
 
-          <fieldset className="optgroup" style={{ marginTop: 20 }}>
-            <legend>{type === 'pickup' ? 'Pickup time' : 'When should it be ready?'}</legend>
-            <label className="opt">
+          <fieldset className={OPTGROUP} style={{ marginTop: 20 }}>
+            <legend className={OPT_LEGEND}>{type === 'pickup' ? 'Pickup time' : 'When should it be ready?'}</legend>
+            <label className={OPT}>
               <input type="radio" name="when" checked={asap} onChange={() => setAsap(true)} />
               <span className="grow">
                 As soon as possible
@@ -525,7 +530,7 @@ export function Checkout({
                 )}
               </span>
             </label>
-            <label className="opt">
+            <label className={OPT}>
               <input type="radio" name="when" checked={!asap} onChange={() => setAsap(false)} />
               <span className="grow">Schedule for later</span>
             </label>
@@ -542,9 +547,9 @@ export function Checkout({
                     ))}
                   </div>
                 )}
-                <div className="slot-grid" role="group" aria-label="Available times">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(92px,1fr))] gap-2" role="group" aria-label="Available times">
                   {(slotsByDay.find(([k]) => k === activeDay)?.[1] ?? []).map((s) => (
-                    <button key={s.start} type="button" className="slot" disabled={!s.available} aria-pressed={slot === s.start} onClick={() => setSlot(s.start)} aria-label={`${formatLocalTime(s.start, timezone)}${s.available ? '' : ', full'}`}>
+                    <button key={s.start} type="button" className="min-h-11 cursor-pointer rounded-[var(--r-sm)] border-[1.5px] border-[var(--line-strong)] bg-[var(--surface)] font-[family-name:var(--font-body)] text-[0.95rem] font-bold leading-normal aria-pressed:border-espresso aria-pressed:bg-espresso aria-pressed:text-white disabled:cursor-not-allowed disabled:line-through disabled:opacity-45" disabled={!s.available} aria-pressed={slot === s.start} onClick={() => setSlot(s.start)} aria-label={`${formatLocalTime(s.start, timezone)}${s.available ? '' : ', full'}`}>
                       {formatLocalTime(s.start, timezone)}
                     </button>
                   ))}
@@ -590,10 +595,10 @@ export function Checkout({
 
         <section className="panel" aria-labelledby="h-pay">
           <h2 id="h-pay">Payment</h2>
-          <fieldset className="optgroup" style={{ marginTop: 0 }}>
+          <fieldset className={OPTGROUP} style={{ marginTop: 0 }}>
             <legend className="sr-only">Payment method</legend>
             {ordering.onlinePayments && (
-              <label className="opt">
+              <label className={OPT}>
                 <input type="radio" name="pay" checked={pay === 'online'} onChange={() => setPay('online')} />
                 <span className="grow">
                   Mobile Money or card
@@ -604,7 +609,7 @@ export function Checkout({
               </label>
             )}
             {cashAllowed && (
-              <label className="opt">
+              <label className={OPT}>
                 <input type="radio" name="pay" checked={pay === 'cash'} onChange={() => setPay('cash')} />
                 <span className="grow">Cash on {type === 'pickup' ? 'pickup' : 'delivery'}</span>
               </label>
@@ -614,7 +619,7 @@ export function Checkout({
         </section>
       </div>
 
-      <aside>
+      <aside className={SIDEBAR}>
         <section className="panel" aria-labelledby="h-sum">
           <h2 id="h-sum">Summary</h2>
           <div className="row" style={{ marginBottom: 12 }}>
@@ -635,38 +640,38 @@ export function Checkout({
               </button>
             </p>
           )}
-          <div className="totals" aria-live="polite" aria-busy={quoting}>
+          <div className={TOTALS} aria-live="polite" aria-busy={quoting}>
             {quote ? (
               <>
-                <div className="line">
+                <div className={TOTAL_LINE}>
                   <span>Subtotal</span>
                   <span>{formatGHS(quote.subtotalPesewas)}</span>
                 </div>
                 {quote.discountPesewas > 0 && (
-                  <div className="line">
+                  <div className={TOTAL_LINE}>
                     <span>Discount</span>
                     <span>−{formatGHS(quote.discountPesewas)}</span>
                   </div>
                 )}
                 {type === 'delivery' && (
-                  <div className="line">
+                  <div className={TOTAL_LINE}>
                     <span>Delivery</span>
                     <span>{quote.zone ? formatGHS(quote.deliveryFeePesewas) : 'Add your location'}</span>
                   </div>
                 )}
                 {quote.serviceChargePesewas > 0 && (
-                  <div className="line">
+                  <div className={TOTAL_LINE}>
                     <span>Service charge</span>
                     <span>{formatGHS(quote.serviceChargePesewas)}</span>
                   </div>
                 )}
                 {quote.taxPesewas > 0 && (
-                  <div className="line">
+                  <div className={TOTAL_LINE}>
                     <span>{quote.charges.taxLabel}</span>
                     <span>{formatGHS(quote.taxPesewas)}</span>
                   </div>
                 )}
-                <div className="line grand">
+                <div className={TOTAL_GRAND}>
                   <span>Total</span>
                   <span>{formatGHS(quote.totalPesewas)}</span>
                 </div>

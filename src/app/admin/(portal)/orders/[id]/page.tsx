@@ -14,6 +14,7 @@ import { LiveRefresh } from '@/components/admin/LiveRefresh';
 import { labelOrder, labelPayment, labelKitchen, labelFulfillment, orderTone, paymentTone, kitchenTone, fulfillmentTone } from '@/lib/status-ui';
 import { directionsUrl } from '@/components/shop/MapEmbed';
 import * as A from './actions';
+import { PRICE, CART_LINE, MODS, TOTALS, TOTAL_LINE, TOTAL_GRAND } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Order' };
@@ -80,31 +81,31 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           <section className="panel">
             <h2>Items</h2>
             {d.items.map((it) => (
-              <div key={it.id} className="cart-line">
+              <div key={it.id} className={CART_LINE}>
                 <div>
                   <strong>
                     {it.quantity}× {it.itemName}
                   </strong>
                   {it.variantName && <span className="muted"> ({it.variantName})</span>}
-                  {it.modifiers.length > 0 && <div className="mods">{it.modifiers.map((m) => `${m.name}${m.pricePesewas ? ` (+${formatGHS(m.pricePesewas)})` : ''}`).join(', ')}</div>}
-                  {it.instructions && <div className="mods">Note: {it.instructions}</div>}
-                  {it.allergens.length > 0 && <div className="mods">Allergens: {it.allergens.join(', ')}</div>}
+                  {it.modifiers.length > 0 && <div className={MODS}>{it.modifiers.map((m) => `${m.name}${m.pricePesewas ? ` (+${formatGHS(m.pricePesewas)})` : ''}`).join(', ')}</div>}
+                  {it.instructions && <div className={MODS}>Note: {it.instructions}</div>}
+                  {it.allergens.length > 0 && <div className={MODS}>Allergens: {it.allergens.join(', ')}</div>}
                 </div>
-                <div className="price">
+                <div className={PRICE}>
                   {formatGHS(it.lineTotalPesewas)}
                   <div className="small muted">{formatGHS(it.unitPricePesewas)} each</div>
                 </div>
               </div>
             ))}
             {o.customerNotes && <p className="alert info small" style={{ marginTop: 10 }}>Customer note: {o.customerNotes}</p>}
-            <div className="totals" style={{ marginTop: 12, maxWidth: 360, marginLeft: 'auto' }}>
-              <div className="line"><span>Subtotal</span><span>{formatGHS(o.subtotalPesewas)}</span></div>
-              {o.discountPesewas > 0 && <div className="line"><span>Discount</span><span>−{formatGHS(o.discountPesewas)}</span></div>}
-              {o.deliveryFeePesewas > 0 && <div className="line"><span>Delivery fee</span><span>{formatGHS(o.deliveryFeePesewas)}</span></div>}
-              {o.serviceChargePesewas > 0 && <div className="line"><span>Service charge</span><span>{formatGHS(o.serviceChargePesewas)}</span></div>}
-              {o.taxPesewas > 0 && <div className="line"><span>Taxes</span><span>{formatGHS(o.taxPesewas)}</span></div>}
-              <div className="line grand"><span>Total</span><span>{formatGHS(o.totalPesewas)}</span></div>
-              {o.refundedPesewas > 0 && <div className="line"><span>Refunded</span><span>{formatGHS(o.refundedPesewas)}</span></div>}
+            <div className={TOTALS} style={{ marginTop: 12, maxWidth: 360, marginLeft: 'auto' }}>
+              <div className={TOTAL_LINE}><span>Subtotal</span><span>{formatGHS(o.subtotalPesewas)}</span></div>
+              {o.discountPesewas > 0 && <div className={TOTAL_LINE}><span>Discount</span><span>−{formatGHS(o.discountPesewas)}</span></div>}
+              {o.deliveryFeePesewas > 0 && <div className={TOTAL_LINE}><span>Delivery fee</span><span>{formatGHS(o.deliveryFeePesewas)}</span></div>}
+              {o.serviceChargePesewas > 0 && <div className={TOTAL_LINE}><span>Service charge</span><span>{formatGHS(o.serviceChargePesewas)}</span></div>}
+              {o.taxPesewas > 0 && <div className={TOTAL_LINE}><span>Taxes</span><span>{formatGHS(o.taxPesewas)}</span></div>}
+              <div className={TOTAL_GRAND}><span>Total</span><span>{formatGHS(o.totalPesewas)}</span></div>
+              {o.refundedPesewas > 0 && <div className={TOTAL_LINE}><span>Refunded</span><span>{formatGHS(o.refundedPesewas)}</span></div>}
             </div>
           </section>
 

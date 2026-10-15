@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatGHS } from '@/lib/money';
 import { useCart } from '@/lib/cart';
 import { Icon } from '../Icon';
+import { DIALOG, OPTGROUP, OPT_LEGEND, OPT, QTY, QTY_BTN, QTY_OUT, PRICE } from '../ui';
 import { tagLabel } from './DishCard';
 import type { ClientMenuItem } from './types';
 
@@ -67,7 +68,7 @@ export function ItemSheet({
     return errs;
   }, [item, mods]);
 
-  if (!item) return <dialog ref={ref} className="sheet" onClose={onClose} />;
+  if (!item) return <dialog ref={ref} className={DIALOG} onClose={onClose} />;
 
   const variant = item.variants.find((v) => v.id === variantId) ?? null;
   const base = item.variants.length ? variant?.pricePesewas ?? 0 : item.basePricePesewas;
@@ -117,15 +118,15 @@ export function ItemSheet({
   }
 
   return (
-    <dialog ref={ref} className="sheet" onClose={onClose} aria-labelledby="sheet-title" onClick={(e) => e.target === ref.current && ref.current?.close()}>
-      <div className="sheet-inner" style={{ position: 'relative' }}>
-        <button type="button" className="sheet-close" onClick={() => ref.current?.close()} aria-label="Close">
+    <dialog ref={ref} className={DIALOG} onClose={onClose} aria-labelledby="sheet-title" onClick={(e) => e.target === ref.current && ref.current?.close()}>
+      <div className="flex max-h-[inherit] flex-col" style={{ position: 'relative' }}>
+        <button type="button" className="absolute right-3 top-3 z-[2] grid size-10 cursor-pointer place-items-center rounded-full border-0 bg-[rgba(255,255,255,0.92)]" onClick={() => ref.current?.close()} aria-label="Close">
           <Icon name="x" />
         </button>
-        <div className="sheet-scroll">
+        <div className="overflow-y-auto px-5 pb-4 pt-0">
           {item.imageUrl ? (
-            <div className="sheet-img" style={{ position: 'relative' }}>
-              <Image src={item.imageUrl} alt={item.imageAlt ?? ''} fill sizes="560px" />
+            <div className="-mx-5 mb-4 aspect-video overflow-hidden bg-ivory-2" style={{ position: 'relative' }}>
+              <Image src={item.imageUrl} alt={item.imageAlt ?? ''} fill sizes="560px" className="object-cover" />
             </div>
           ) : (
             <div style={{ height: 56 }} />
@@ -137,7 +138,7 @@ export function ItemSheet({
           {item.dietaryTags.length > 0 && (
             <p className="row" style={{ gap: 6 }}>
               {item.dietaryTags.map((t) => (
-                <span key={t} className="tag">
+                <span key={t} className="rounded-full bg-ivory-2 px-2 py-px text-[0.78rem] font-bold text-espresso">
                   {tagLabel(t)}
                 </span>
               ))}
@@ -152,18 +153,18 @@ export function ItemSheet({
           {!item.orderable && <p className="alert error">This dish is {item.unavailableReason ?? 'unavailable'} right now.</p>}
 
           {item.variants.length > 0 && (
-            <fieldset className="optgroup">
-              <legend>
+            <fieldset className={OPTGROUP}>
+              <legend className={OPT_LEGEND}>
                 Size <span className="hint">Required</span>
               </legend>
               {item.variants.map((v) => (
-                <label key={v.id} className="opt">
+                <label key={v.id} className={OPT}>
                   <input type="radio" name="variant" checked={variantId === v.id} disabled={!v.isAvailable} onChange={() => setVariantId(v.id)} />
                   <span className="grow">
                     {v.name}
                     {!v.isAvailable && ' (sold out)'}
                   </span>
-                  <span className="price">{formatGHS(v.pricePesewas)}</span>
+                  <span className={PRICE}>{formatGHS(v.pricePesewas)}</span>
                 </label>
               ))}
             </fieldset>
@@ -174,12 +175,12 @@ export function ItemSheet({
             const count = g.modifiers.filter((m) => mods.has(m.id)).length;
             const rule = g.minSelect > 0 ? (single ? 'Required' : `Choose ${g.minSelect}–${g.maxSelect}`) : single ? 'Optional' : `Up to ${g.maxSelect}`;
             return (
-              <fieldset key={g.id} className="optgroup" aria-describedby={tried && groupErrors[g.id] ? `ge-${g.id}` : undefined}>
-                <legend>
+              <fieldset key={g.id} className={OPTGROUP} aria-describedby={tried && groupErrors[g.id] ? `ge-${g.id}` : undefined}>
+                <legend className={OPT_LEGEND}>
                   {g.name} <span className="hint">{rule}</span>
                 </legend>
                 {g.modifiers.map((m) => (
-                  <label key={m.id} className="opt">
+                  <label key={m.id} className={OPT}>
                     <input
                       type={single ? 'radio' : 'checkbox'}
                       name={`g-${g.id}`}
@@ -191,7 +192,7 @@ export function ItemSheet({
                       {m.name}
                       {!m.isAvailable && ' (unavailable)'}
                     </span>
-                    {m.pricePesewas > 0 && <span className="price">+{formatGHS(m.pricePesewas)}</span>}
+                    {m.pricePesewas > 0 && <span className={PRICE}>+{formatGHS(m.pricePesewas)}</span>}
                   </label>
                 ))}
                 {tried && groupErrors[g.id] && (
@@ -209,13 +210,13 @@ export function ItemSheet({
             <span className="hint">{200 - note.length} characters left</span>
           </div>
         </div>
-        <div className="sheet-foot">
-          <div className="qty" role="group" aria-label="Quantity">
-            <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">
+        <div className="flex items-center gap-3 border-t border-line px-5 pb-[calc(14px+env(safe-area-inset-bottom))] pt-3.5">
+          <div className={QTY} role="group" aria-label="Quantity">
+            <button type="button" className={QTY_BTN} onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">
               <Icon name="minus" size={18} />
             </button>
-            <output aria-live="polite">{qty}</output>
-            <button type="button" onClick={() => setQty((q) => Math.min(maxQty, q + 1))} aria-label="Increase quantity">
+            <output className={QTY_OUT} aria-live="polite">{qty}</output>
+            <button type="button" className={QTY_BTN} onClick={() => setQty((q) => Math.min(maxQty, q + 1))} aria-label="Increase quantity">
               <Icon name="plus" size={18} />
             </button>
           </div>

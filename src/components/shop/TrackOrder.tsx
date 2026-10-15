@@ -9,6 +9,25 @@ import { MapEmbed } from './MapEmbed';
 import { Icon } from '../Icon';
 import type { TrackingView } from '@/server/orders/queries';
 import { BackLink } from './BackLink';
+import { PRICE, CART_LINE, MODS, TOTALS, TOTAL_LINE, TOTAL_GRAND, TWO_COL, SIDEBAR } from '../ui';
+
+const PK_LABEL = 'text-[0.8rem] uppercase tracking-[0.08em] opacity-75';
+const PK_VALUE = 'text-[length:clamp(1.6rem,6vw,2.2rem)] tracking-[0.06em] max-[380px]:tracking-[0.03em]';
+const PK_CARD = 'grid gap-1 rounded-[14px] bg-espresso p-[18px] text-center text-[#efe6d2]';
+const PK_DT = 'text-[0.78rem] uppercase tracking-[0.06em] text-muted';
+const PK_DD = 'm-0 mt-0.5 font-semibold text-espresso';
+const PK_DD_SMALL = 'block font-normal text-muted';
+
+/** Step circle + connector line for the progress bar in the header. */
+function stepCls(state: 'done' | 'current' | 'todo') {
+  const color = state === 'current' ? 'font-bold text-white' : state === 'done' ? 'text-[rgba(239,230,210,0.9)]' : 'text-[rgba(239,230,210,0.6)]';
+  const line = state === 'todo' ? 'before:bg-[rgba(239,230,210,0.25)]' : 'before:bg-[var(--caramel)]';
+  return `relative flex flex-col items-center gap-1.5 text-center first:before:hidden before:absolute before:right-1/2 before:top-[11px] before:h-0.5 before:w-full before:content-[''] ${line} ${color}`;
+}
+function dotCls(state: 'done' | 'current' | 'todo') {
+  const look = state === 'current' ? 'border-[#efe6d2] bg-[#efe6d2] shadow-[0_0_0_4px_rgba(239,230,210,0.22)]' : state === 'done' ? 'border-[var(--caramel)] bg-[var(--caramel)]' : 'border-[rgba(239,230,210,0.4)] bg-espresso';
+  return `relative z-[1] grid size-6 place-items-center rounded-full border-2 text-[0.75rem] font-bold text-espresso ${look}`;
+}
 
 type View = TrackingView;
 
@@ -78,8 +97,8 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
 
   return (
     <>
-      <section className="track-hero">
-        <div className="wrap">
+      <section className="bg-espresso pb-9 pt-7 text-white [@media(max-height:480px)_and_(orientation:landscape)]:py-4">
+        <div className="mx-auto w-full max-w-[var(--maxw)] px-[var(--gutter)]">
       <BackLink href="/menu" label="Back to menu" light />
           <div className="row between">
             <p style={{ margin: 0 }}>
@@ -90,7 +109,7 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
               {status === 'live' && !stale ? 'Live updates' : lastSuccess ? `Updated ${ago(now - lastSuccess)}` : 'Connecting…'}
             </span>
           </div>
-          <h1 className="track-stage" aria-live="polite" style={{ marginTop: 14 }}>
+          <h1 className="font-[family-name:var(--font-display)] text-[length:clamp(2rem,6vw,3.4rem)] font-normal leading-[1.05] tracking-[-0.005em]" aria-live="polite" style={{ marginTop: 14 }}>
             {CUSTOMER_STAGE_LABELS[stage]}
           </h1>
           <p style={{ color: '#efe6d2', marginBottom: 0 }}>
@@ -108,11 +127,11 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             {stage === 'attention' && 'There’s a problem with the delivery. We’ll contact you, or you can reach us below.'}
           </p>
           {stage !== 'cancelled' && stage !== 'attention' && (
-            <ol className="stepper" aria-label="Order progress">
+            <ol className="relative m-0 mt-[22px] grid list-none auto-cols-fr grid-flow-col p-0" aria-label="Order progress">
               {tl.map((st, i) => (
-                <li key={st} className={i < idx ? 'done' : i === idx ? 'current' : ''} aria-current={i === idx ? 'step' : undefined}>
-                  <span className="st-dot" aria-hidden="true">{i < idx || (i === idx && i === tl.length - 1) ? '✓' : ''}</span>
-                  <span className="st-label">{CUSTOMER_STAGE_LABELS[st]}</span>
+                <li key={st} className={stepCls(i < idx ? 'done' : i === idx ? 'current' : 'todo')} aria-current={i === idx ? 'step' : undefined}>
+                  <span className={dotCls(i < idx ? 'done' : i === idx ? 'current' : 'todo')} aria-hidden="true">{i < idx || (i === idx && i === tl.length - 1) ? '✓' : ''}</span>
+                  <span className="max-w-20 text-[0.72rem] leading-[1.2] min-[640px]:max-w-[110px] min-[640px]:text-[0.82rem] max-[380px]:max-w-14 max-[380px]:text-[0.64rem] max-[380px]:hyphens-auto">{CUSTOMER_STAGE_LABELS[st]}</span>
                 </li>
               ))}
             </ol>
@@ -120,16 +139,16 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
         </div>
       </section>
 
-      <div className="wrap section" style={{ paddingTop: 24 }}>
+      <div className="mx-auto w-full max-w-[var(--maxw)] px-[var(--gutter)] pb-[clamp(72px,10vw,144px)] pt-6">
         {error && <p className="alert warn">{error}</p>}
-        {o.isTest && <p className="track-test">Test order · simulated payment</p>}
+        {o.isTest && <p className="mb-3.5 mt-0 inline-block rounded-full bg-caramel-tint px-2.5 py-1 text-[0.8rem] font-semibold text-caramel">Test order · simulated payment</p>}
         {fromPayment && o.status === 'pending_payment' && o.paymentStatus !== 'failed' && (
           <p className="alert info" role="status">
             We’re waiting for the payment provider to confirm your payment. This page updates automatically. Mobile Money approvals can take a minute.
           </p>
         )}
 
-        <div className="checkout-grid">
+        <div className={TWO_COL}>
           <div className="stack" style={{ ['--stack' as string]: '20px' }}>
             {o.status === 'pending_payment' && o.paymentMethod === 'online' && (
               <section className="panel">
@@ -158,34 +177,34 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             )}
 
             {o.fulfillmentType === 'delivery' && o.status !== 'cancelled' && (
-              <section className="panel pickup-card" aria-labelledby="deliv-h">
-                <h2 id="deliv-h" className="visually-hidden">Delivery</h2>
+              <section className="panel grid gap-4" aria-labelledby="deliv-h">
+                <h2 id="deliv-h" className="sr-only">Delivery</h2>
                 {v.pin ? (
-                  <div className="pk-code">
-                    <span>Your delivery PIN</span>
-                    <strong className="tnum" aria-label={`PIN ${v.pin.split('').join(' ')}`}>{v.pin}</strong>
-                    <small>Give it to the rider only when you receive your food. We’ll never ask for it by phone.</small>
+                  <div className={PK_CARD}>
+                    <span className={PK_LABEL}>Your delivery PIN</span>
+                    <strong className={`tnum ${PK_VALUE}`} aria-label={`PIN ${v.pin.split('').join(' ')}`}>{v.pin}</strong>
+                    <small className="opacity-75">Give it to the rider only when you receive your food. We’ll never ask for it by phone.</small>
                   </div>
                 ) : (
-                  <div className="pk-code">
-                    <span>Your order number</span>
-                    <strong className="tnum">{o.orderNumber}</strong>
-                    <small>Your delivery PIN appears here once a rider is assigned</small>
+                  <div className={PK_CARD}>
+                    <span className={PK_LABEL}>Your order number</span>
+                    <strong className={`tnum ${PK_VALUE}`}>{o.orderNumber}</strong>
+                    <small className="opacity-75">Your delivery PIN appears here once a rider is assigned</small>
                   </div>
                 )}
-                <dl className="pk-meta">
+                <dl className="m-0 grid grid-cols-2 gap-3 max-[480px]:grid-cols-1">
                   <div>
-                    <dt>Expected</dt>
-                    <dd>
+                    <dt className={PK_DT}>Expected</dt>
+                    <dd className={PK_DD}>
                       {promised}
-                      {o.isAsap && <small>Around this time</small>}
+                      {o.isAsap && <small className={PK_DD_SMALL}>Around this time</small>}
                     </dd>
                   </div>
                   <div>
-                    <dt>Deliver to</dt>
-                    <dd>
+                    <dt className={PK_DT}>Deliver to</dt>
+                    <dd className={PK_DD}>
                       {v.fulfillment.addressLine || v.fulfillment.zoneName || '—'}
-                      {v.fulfillment.landmark && <small>{v.fulfillment.landmark}</small>}
+                      {v.fulfillment.landmark && <small className={PK_DD_SMALL}>{v.fulfillment.landmark}</small>}
                     </dd>
                   </div>
                 </dl>
@@ -239,26 +258,26 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             )}
 
             {o.fulfillmentType === 'pickup' && o.status !== 'cancelled' && (
-              <section className="panel pickup-card">
-                <div className="pk-code">
-                  <span>Your order number</span>
-                  <strong className="tnum">{o.orderNumber}</strong>
-                  <small>Show this at the counter</small>
+              <section className="panel grid gap-4">
+                <div className={PK_CARD}>
+                  <span className={PK_LABEL}>Your order number</span>
+                  <strong className={`tnum ${PK_VALUE}`}>{o.orderNumber}</strong>
+                  <small className="opacity-75">Show this at the counter</small>
                 </div>
-                <dl className="pk-meta">
+                <dl className="m-0 grid grid-cols-2 gap-3 max-[480px]:grid-cols-1">
                   <div>
-                    <dt>Pickup time</dt>
-                    <dd>
+                    <dt className={PK_DT}>Pickup time</dt>
+                    <dd className={PK_DD}>
                       {promised}
-                      {o.isAsap && <small>Earliest available</small>}
+                      {o.isAsap && <small className={PK_DD_SMALL}>Earliest available</small>}
                     </dd>
                   </div>
                   <div>
-                    <dt>Where</dt>
-                    <dd>{v.restaurant.addressLine || v.restaurant.name}</dd>
+                    <dt className={PK_DT}>Where</dt>
+                    <dd className={PK_DD}>{v.restaurant.addressLine || v.restaurant.name}</dd>
                   </div>
                 </dl>
-                {v.restaurant.pickupInstructions && <p className="muted pk-note">{v.restaurant.pickupInstructions}</p>}
+                {v.restaurant.pickupInstructions && <p className="muted m-0 text-[0.92rem]">{v.restaurant.pickupInstructions}</p>}
               </section>
             )}
 
@@ -268,19 +287,19 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
               {v.notifications.length === 0 && <p className="muted">Updates will appear here as your order moves along.</p>}
               {v.notifications.length > 0 && (
                 <>
-                                    <ol className="upd-list">
+                                    <ol className="m-0 list-none border-l-2 border-line p-0 pl-[18px]">
                     {[...v.notifications].reverse().slice(0, showAllUpdates ? undefined : 3).map((n, i) => (
-                      <li key={n.id} className={i === 0 ? 'latest' : ''}>
-                        <div className="upd-top">
-                          <strong>{n.title.replace(/\.$/, '')}</strong>
-                          <time className="tnum">{formatLocalTime(n.createdAt, tz)}</time>
+                      <li key={n.id} className={`relative pb-4 pl-3.5 last:pb-0 [overflow-wrap:anywhere] before:absolute before:-left-6 before:top-[5px] before:size-2.5 before:rounded-full before:border-2 before:content-[''] ${i === 0 ? 'before:border-sage before:bg-sage' : 'before:border-[var(--line-strong)] before:bg-ivory'}`}>
+                        <div className="flex items-baseline justify-between gap-3 max-[380px]:flex-wrap max-[380px]:gap-x-3 max-[380px]:gap-y-0.5">
+                          <strong className="text-espresso">{n.title.replace(/\.$/, '')}</strong>
+                          <time className="tnum whitespace-nowrap text-[0.85rem] text-muted">{formatLocalTime(n.createdAt, tz)}</time>
                         </div>
-                        <p>{n.body.replace(/Track( it)? here:? \S+|Track: \S+|tracking page: \S+/g, '').replace(/^Bite & Sips:\s*/, '').trim()}</p>
+                        <p className="m-0 mt-0.5 text-[0.92rem] leading-[1.4] text-muted">{n.body.replace(/Track( it)? here:? \S+|Track: \S+|tracking page: \S+/g, '').replace(/^Bite & Sips:\s*/, '').trim()}</p>
                       </li>
                     ))}
                   </ol>
                   {v.notifications.length > 3 && (
-                    <button type="button" className="upd-more" onClick={() => setShowAllUpdates((x) => !x)}>
+                    <button type="button" className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-semibold text-sage underline" onClick={() => setShowAllUpdates((x) => !x)}>
                       {showAllUpdates ? 'Show fewer' : `Show all ${v.notifications.length} updates`}
                     </button>
                   )}
@@ -289,57 +308,57 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             </section>
           </div>
 
-          <aside className="stack" style={{ ['--stack' as string]: '20px' }}>
+          <aside className={`stack ${SIDEBAR}`} style={{ ['--stack' as string]: '20px' }}>
             <section className="panel">
               <h2>Order details</h2>
               {v.items.map((it) => (
-                <div key={it.id} className="cart-line">
+                <div key={it.id} className={CART_LINE}>
                   <div>
                     <strong>
                       {it.quantity}× {it.itemName}
                     </strong>
                     {it.variantName && <span className="muted"> ({it.variantName})</span>}
-                    {it.modifiers.length > 0 && <div className="mods">{it.modifiers.map((m) => m.name).join(', ')}</div>}
-                    {it.instructions && <div className="mods">Note: {it.instructions}</div>}
+                    {it.modifiers.length > 0 && <div className={MODS}>{it.modifiers.map((m) => m.name).join(', ')}</div>}
+                    {it.instructions && <div className={MODS}>Note: {it.instructions}</div>}
                   </div>
-                  <span className="price">{formatGHS(it.lineTotalPesewas)}</span>
+                  <span className={PRICE}>{formatGHS(it.lineTotalPesewas)}</span>
                 </div>
               ))}
-              <div className="totals" style={{ marginTop: 12 }}>
-                <div className="line">
+              <div className={TOTALS} style={{ marginTop: 12 }}>
+                <div className={TOTAL_LINE}>
                   <span>Subtotal</span>
                   <span>{formatGHS(o.subtotalPesewas)}</span>
                 </div>
                 {o.discountPesewas > 0 && (
-                  <div className="line">
+                  <div className={TOTAL_LINE}>
                     <span>Discount</span>
                     <span>−{formatGHS(o.discountPesewas)}</span>
                   </div>
                 )}
                 {o.deliveryFeePesewas > 0 && (
-                  <div className="line">
+                  <div className={TOTAL_LINE}>
                     <span>Delivery</span>
                     <span>{formatGHS(o.deliveryFeePesewas)}</span>
                   </div>
                 )}
                 {o.serviceChargePesewas > 0 && (
-                  <div className="line">
+                  <div className={TOTAL_LINE}>
                     <span>Service charge</span>
                     <span>{formatGHS(o.serviceChargePesewas)}</span>
                   </div>
                 )}
                 {o.taxPesewas > 0 && (
-                  <div className="line">
+                  <div className={TOTAL_LINE}>
                     <span>Taxes</span>
                     <span>{formatGHS(o.taxPesewas)}</span>
                   </div>
                 )}
-                <div className="line grand">
+                <div className={TOTAL_GRAND}>
                   <span>Total</span>
                   <span>{formatGHS(o.totalPesewas)}</span>
                 </div>
                 {o.refundedPesewas > 0 && (
-                  <div className="line">
+                  <div className={TOTAL_LINE}>
                     <span>Refunded</span>
                     <span>{formatGHS(o.refundedPesewas)}</span>
                   </div>

@@ -5,6 +5,7 @@ import { formatLocalTime } from '@/lib/time';
 import { Icon } from '../Icon';
 import { BrandMark } from '../BrandMark';
 import { LogoutButton } from '../LoginForm';
+import { DIALOG } from '../ui';
 import type { KitchenQueue } from '@/server/orders/queries';
 
 type Ticket = KitchenQueue['orders'][number];
@@ -399,7 +400,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
         ))}
       </div>
 
-      <dialog ref={dialog} className="sheet" onClose={() => setIssueFor(null)}>
+      <dialog ref={dialog} className={DIALOG} onClose={() => setIssueFor(null)}>
         <div style={{ padding: 20 }} className="stack">
           <h2>Alert a manager about {issueFor?.orderNumber}</h2>
           <label className="label" htmlFor="issue-text">

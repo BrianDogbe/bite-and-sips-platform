@@ -15,6 +15,8 @@ export function fromPrice(item: ClientMenuItem) {
 const TAG_LABELS: Record<string, string> = { vegetarian: 'Vegetarian', vegan: 'Vegan', spicy: 'Spicy', gluten_free: 'Gluten-free', halal: 'Halal' };
 export const tagLabel = (t: string) => TAG_LABELS[t] ?? t;
 
+const BTN = 'mt-1.5 flex min-h-[42px] items-center justify-center gap-2 rounded-xl font-extrabold';
+
 export function DishCard({ item, onOpen, best }: { item: ClientMenuItem; onOpen: (i: ClientMenuItem) => void; best?: boolean }) {
   const initials = item.name
     .split(/\s+/)
@@ -22,28 +24,28 @@ export function DishCard({ item, onOpen, best }: { item: ClientMenuItem; onOpen:
     .map((w) => w[0])
     .join('');
   return (
-    <button type="button" className="dish" onClick={() => onOpen(item)} aria-label={`${item.name}, ${fromPrice(item)}${item.orderable ? '' : ', unavailable'}`}>
-      <div className="dish-img">
+    <button type="button" className="group flex size-full h-full cursor-pointer flex-col overflow-hidden rounded-[18px] border-0 bg-espresso p-0 text-left text-[#e6ddcf] [font:inherit] [overflow-wrap:anywhere]" onClick={() => onOpen(item)} aria-label={`${item.name}, ${fromPrice(item)}${item.orderable ? '' : ', unavailable'}`}>
+      <div className="relative aspect-[3/2] flex-none overflow-hidden bg-[var(--espresso-2)]">
         {item.imageUrl ? (
-          <Image src={item.imageUrl} alt={item.imageAlt ?? ''} fill sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 300px" />
+          <Image src={item.imageUrl} alt={item.imageAlt ?? ''} fill sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 300px" className="object-cover" />
         ) : (
-          <div className="dish-noimg" aria-hidden="true">
+          <div className="grid size-full place-items-center bg-[radial-gradient(circle_at_30%_30%,var(--espresso-2),var(--espresso))] font-[family-name:var(--font-display)] text-[3.4rem] font-normal tracking-[-0.04em] text-[var(--caramel)]" aria-hidden="true">
             {initials}
           </div>
         )}
-        {item.orderable && best && <span className="dish-badge pop">Popular</span>}
-        {!item.orderable && <span className="soldout">{item.unavailableReason === 'sold out' || !item.unavailableReason ? 'Sold out' : 'Unavailable'}</span>}
+        {item.orderable && best && <span className="absolute left-3.5 top-3.5 rounded-lg bg-[var(--caramel)] px-[11px] py-1 text-[0.72rem] font-extrabold uppercase tracking-[0.1em] text-espresso">Popular</span>}
+        {!item.orderable && <span className="absolute bottom-2.5 right-2.5 rounded-full bg-white px-2.5 py-1 text-[0.8rem] font-bold text-espresso">{item.unavailableReason === 'sold out' || !item.unavailableReason ? 'Sold out' : 'Unavailable'}</span>}
       </div>
-      <div className="dish-body">
-        <span className="dish-name">{item.name}</span>
-        {item.description && <span className="dish-desc">{item.description}</span>}
-        <span className="price">{fromPrice(item)}</span>
+      <div className="flex flex-1 flex-col gap-1.5 px-[18px] pb-[18px] pt-4">
+        <span className="line-clamp-2 font-[family-name:var(--font-display)] text-[1.4rem] font-normal leading-[1.15] text-white">{item.name}</span>
+        {item.description && <span className="line-clamp-2 text-[0.9rem] leading-[1.4] text-[#e6ddcf]">{item.description}</span>}
+        <span className="mt-auto block pt-1.5 text-[1.25rem] font-extrabold tabular-nums text-white">{fromPrice(item)}</span>
         {item.orderable ? (
-          <span className="dish-btn" aria-hidden="true">
+          <span className={`${BTN} bg-[var(--caramel)] text-espresso transition-[filter] duration-200 group-hover:brightness-[1.08] motion-reduce:transition-none`} aria-hidden="true">
             <Icon name="cart" size={18} /> Add to cart
           </span>
         ) : (
-          <span className="dish-btn off" aria-hidden="true">
+          <span className={`${BTN} bg-[rgba(247,242,233,0.16)] text-[#d9cfc0]`} aria-hidden="true">
             Unavailable
           </span>
         )}

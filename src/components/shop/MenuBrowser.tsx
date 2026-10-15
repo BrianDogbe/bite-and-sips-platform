@@ -8,6 +8,9 @@ import { useCart } from '@/lib/cart';
 import { formatGHS } from '@/lib/money';
 import type { ClientCategory, ClientMenuItem } from './types';
 
+const CHIP =
+  'flex-none cursor-pointer whitespace-nowrap rounded-full border-[1.5px] border-[var(--border)] bg-white px-[18px] py-[9px] font-[family-name:var(--font-body)] text-base font-bold leading-normal text-espresso hover:border-espresso aria-pressed:border-espresso aria-pressed:bg-espresso aria-pressed:text-white';
+
 export function MenuBrowser({ categories, items, bestsellerIds, maxQty, initialItem }: { categories: ClientCategory[]; items: ClientMenuItem[]; bestsellerIds: number[]; maxQty: number; initialItem?: string | null }) {
   const [cat, setCat] = useState<number | 'all'>('all');
   const [q, setQ] = useState('');
@@ -41,24 +44,24 @@ export function MenuBrowser({ categories, items, bestsellerIds, maxQty, initialI
 
   return (
     <>
-      <div className="menu-tools">
-        <label className="menu-search">
+      <div className="flex flex-col flex-wrap items-center gap-3.5 pt-[clamp(64px,9vw,112px)]">
+        <label className="relative w-full max-w-[560px] flex-none">
           <span className="sr-only">Search the menu</span>
-          <span className="menu-search-ico">
+          <span className="absolute left-[13px] top-[13px] text-muted">
             <Icon name="search" size={18} />
           </span>
-          <input className="input" type="search" placeholder="Search dishes and drinks" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input bg-white pl-10" type="search" placeholder="Search dishes and drinks" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
       </div>
 
       {items.length > 0 && (
-        <nav className="menu-nav" aria-label="Menu categories">
-          <div className="menu-nav-in">
-            <button type="button" aria-pressed={cat === 'all'} onClick={() => setCat('all')}>
+        <nav className="sticky top-[65px] z-20 mx-[calc(clamp(20px,5vw,80px)*-1)] mt-[clamp(28px,4vw,44px)] border-b border-[var(--border)] bg-[rgba(247,242,233,0.96)] px-[clamp(20px,5vw,80px)] py-2.5 backdrop-blur-sm" aria-label="Menu categories">
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto [scrollbar-width:none] [justify-content:safe_center]">
+            <button type="button" className={CHIP} aria-pressed={cat === 'all'} onClick={() => setCat('all')}>
               All
             </button>
             {categories.map((c) => (
-              <button key={c.id} type="button" aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>
+              <button key={c.id} type="button" className={CHIP} aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>
                 {c.name}
               </button>
             ))}
@@ -90,7 +93,7 @@ export function MenuBrowser({ categories, items, bestsellerIds, maxQty, initialI
           </button>
         </div>
       ) : (
-        <div className="dish-grid menu-all">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] items-stretch gap-6 pt-[clamp(40px,6vw,72px)] max-[780px]:gap-4">
           {filtered.map((i) => (
             <DishCard key={i.id} item={i} onOpen={setOpen} best={best.has(i.id)} />
           ))}
@@ -98,7 +101,7 @@ export function MenuBrowser({ categories, items, bestsellerIds, maxQty, initialI
       )}
       <ItemSheet item={open} onClose={() => setOpen(null)} maxQty={maxQty} />
       {ready && count > 0 && (
-        <div className="floating-cart">
+        <div className="fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-[25] hidden max-[860px]:block">
           <Link href="/checkout" className="btn primary lg block">
             <Icon name="cart" /> View order ({count}), {formatGHS(estimatePesewas)}
           </Link>

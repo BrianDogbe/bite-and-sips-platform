@@ -25,3 +25,13 @@
   --color-ink: var(--ink);
   --color-danger: var(--danger);
 }
+
+/* Animations used by Tailwind classes (animate-marquee). */
+@theme {
+  --animate-marquee: marquee-scroll 32s linear infinite;
+  @keyframes marquee-scroll {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+}

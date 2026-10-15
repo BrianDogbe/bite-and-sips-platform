@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
+import { PageBanner } from '@/components/shop/PageBanner';
 import { getMenuForStorefront, getStorefront } from '@/server/storefront';
 import { MenuBrowser } from '@/components/shop/MenuBrowser';
 import type { ClientMenuItem } from '@/components/shop/types';
@@ -11,17 +11,10 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const [menu, sf, sp] = await Promise.all([getMenuForStorefront(), getStorefront(), searchParams]);
   return (
     <>
-      <header className="menu-hero">
-        <Image src="/brand/hero-bg.jpg" alt="" fill priority sizes="100vw" className="menu-hero-bg" />
-        <div className="menu-hero-shade" />
-        <div className="wrap menu-hero-in">
-          <p className="hero-eyebrow">{sf.restaurant.name}</p>
-          <h1>Our menu</h1>
-          <p className="menu-hero-sub">Choose a dish to see sizes, sides and extras.</p>
-          {!sf.ordering.acceptingOrders && <p className="alert warn">{sf.ordering.pauseMessage} You can still browse the menu.</p>}
-        </div>
-      </header>
-      <div className="wrap menu-body">
+      <PageBanner eyebrow={sf.restaurant.name} title="Our menu" sub="Choose a dish to see sizes, sides and extras.">
+        {!sf.ordering.acceptingOrders && <p className="alert warn mx-auto max-w-[560px]">{sf.ordering.pauseMessage} You can still browse the menu.</p>}
+      </PageBanner>
+      <div className="mx-auto w-full max-w-none px-[clamp(20px,5vw,80px)] pb-24">
       <MenuBrowser
         categories={menu.categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug, description: c.description }))}
         items={menu.items as unknown as ClientMenuItem[]}

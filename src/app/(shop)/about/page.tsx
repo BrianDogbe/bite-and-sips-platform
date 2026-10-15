@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
+import { PageBanner } from '@/components/shop/PageBanner';
 import { getStorefront, getMenuForStorefront, publicZones } from '@/server/storefront';
 import { DEFAULT_STORY, CATEGORY_BLURBS, VALUES, PROCESS } from '@/lib/about-story';
 
@@ -48,17 +49,9 @@ export default async function AboutPage() {
 
   return (
     <>
-      <header className="menu-hero">
-        <Image src="/brand/hero-bg.jpg" alt="" fill priority sizes="100vw" className="menu-hero-bg" />
-        <div className="menu-hero-shade" />
-        <div className="wrap menu-hero-in">
-          <p className="hero-eyebrow">{r.name}</p>
-          <h1>About us</h1>
-          <p className="menu-hero-sub">Fresh food, made with care, for pickup or delivery.</p>
-        </div>
-      </header>
+      <PageBanner eyebrow={r.name} title="About us" sub="Fresh food, made with care, for pickup or delivery." />
 
-      <section className="section wrap">
+      <section className="section wrap max-w-none px-[clamp(20px,5vw,80px)] pt-[clamp(72px,10vw,140px)]">
         <div className="about-grid">
           <div className="about-story">
             <h2>Our story</h2>
