@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { z } from 'zod';
 import { handler, readJson, noStore, clientIp } from '@/server/http';
 import { invalid } from '@/server/errors';

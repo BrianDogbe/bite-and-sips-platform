@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { NextResponse } from '@/server/response';
 import { handler, assertSameOrigin, noStore, readJson } from '@/server/http';
 import { revokeSession, SESSION_COOKIES } from '@/server/auth/sessions';
-import { clearSessionCookie, asPortal, requestPortal } from '@/server/auth/current';
+import { clearSessionCookie, asPortal, requestPortal, getRequestCookie } from '@/server/auth/current';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +15,7 @@ export const POST = handler(async (req: Request) => {
     /* no body */
   }
   const portal = asPortal(bodyPortal) ?? (await requestPortal()) ?? 'customer';
-  const token = (await cookies()).get(SESSION_COOKIES[portal])?.value;
+  const token = await getRequestCookie(SESSION_COOKIES[portal]);
   if (token) await revokeSession(token);
   await clearSessionCookie(portal);
   return NextResponse.json({ ok: true }, { headers: noStore });

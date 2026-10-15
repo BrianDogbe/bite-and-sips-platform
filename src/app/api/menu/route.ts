@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { handler, noStore } from '@/server/http';
 import { publicMenu } from '@/server/menu';
 

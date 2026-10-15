@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { handler, noStore, clientIp } from '@/server/http';
 import { trackingView } from '@/server/orders/queries';
 import { enforceRateLimit } from '@/server/auth/rate-limit';

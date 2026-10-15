@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { handlePartnerWebhook } from '@/server/fulfillment/partners';
 
 export const dynamic = 'force-dynamic';

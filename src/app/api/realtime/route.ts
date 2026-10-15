@@ -1,6 +1,6 @@
 import { getCurrentUser } from '@/server/auth/current';
 import { bus, ensureListening } from '@/server/realtime';
-import { sql } from '@/server/db';
+import { authorizeTopics } from '@/server/realtime-auth';
 import { log } from '@/server/log';
 
 export const dynamic = 'force-dynamic';
@@ -19,18 +19,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const want = (url.searchParams.get('topics') ?? '').split(',').filter(Boolean).slice(0, 5);
   const user = await getCurrentUser();
-  const topics = new Set<string>(['menu']);
-  for (const t of want) {
-    if (t === 'kitchen' && (user?.permissions.has('kitchen.operate') || user?.permissions.has('kitchen.monitor'))) topics.add('kitchen');
-    else if (t === 'dispatch' && user?.permissions.has('dispatch.manage')) topics.add('dispatch');
-    else if (t === 'admin' && user?.permissions.has('dashboard.view')) topics.add('admin');
-    else if (t === 'rider' && user?.permissions.has('rider.deliver')) topics.add(`rider:${user.id}`);
-  }
-  const token = url.searchParams.get('token');
-  if (token && token.length >= 20 && token.length <= 100) {
-    const [o] = await sql<{ id: string }[]>`select id from orders where tracking_token = ${token}`;
-    if (o) topics.add(`order:${o.id}`);
-  }
+  const topics = await authorizeTopics(user, want, url.searchParams.get('token'));
   if (topics.size === 1 && want.length) return new Response('Forbidden', { status: 403 });
 
   try {

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { handler, noStore, readJson, assertSameOrigin } from '@/server/http';
 import { getCurrentUser } from '@/server/auth/current';
 import { riderRespond, riderAdvance, confirmDeliveryWithPin, failDelivery } from '@/server/fulfillment/inhouse';

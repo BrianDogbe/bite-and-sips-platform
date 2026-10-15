@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { env } from '@/server/env';
 import { runJobs } from '@/server/jobs';
 import { safeEqualStr } from '@/server/ids';

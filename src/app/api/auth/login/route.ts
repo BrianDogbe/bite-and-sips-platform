@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { handler, assertSameOrigin, clientIp, readJson, noStore } from '@/server/http';
 import { login } from '@/server/auth/sessions';
 import { setSessionCookie, asPortal } from '@/server/auth/current';

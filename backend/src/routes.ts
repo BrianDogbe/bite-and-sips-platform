@@ -1,0 +1,69 @@
+// GENERATED from src/app/api/**/route.ts by `npm run backend:routes`. Do not edit by hand.
+import type { RouteModule } from './adapter';
+import * as r0 from '@/app/api/account/reorder/[orderId]/route';
+import * as r1 from '@/app/api/admin/export/route';
+import * as r2 from '@/app/api/admin/upload/route';
+import * as r3 from '@/app/api/auth/login/route';
+import * as r4 from '@/app/api/auth/logout/route';
+import * as r5 from '@/app/api/auth/register/route';
+import * as r6 from '@/app/api/cron/run/route';
+import * as r7 from '@/app/api/dispatch/[orderId]/route';
+import * as r8 from '@/app/api/dispatch/board/route';
+import * as r9 from '@/app/api/geocode/route';
+import * as r10 from '@/app/api/kitchen/exceptions/route';
+import * as r11 from '@/app/api/kitchen/items/[id]/route';
+import * as r12 from '@/app/api/kitchen/orders/[id]/route';
+import * as r13 from '@/app/api/kitchen/queue/route';
+import * as r14 from '@/app/api/menu/route';
+import * as r15 from '@/app/api/orders/[token]/cancel/route';
+import * as r16 from '@/app/api/orders/[token]/pay/route';
+import * as r17 from '@/app/api/orders/[token]/route';
+import * as r18 from '@/app/api/orders/lookup/route';
+import * as r19 from '@/app/api/orders/route';
+import * as r20 from '@/app/api/partners/[key]/webhook/route';
+import * as r21 from '@/app/api/payments/paystack/webhook/route';
+import * as r22 from '@/app/api/quote/route';
+import * as r23 from '@/app/api/realtime/route';
+import * as r24 from '@/app/api/realtime/ticket/route';
+import * as r25 from '@/app/api/rider/heartbeat/route';
+import * as r26 from '@/app/api/rider/location/route';
+import * as r27 from '@/app/api/rider/orders/[id]/route';
+import * as r28 from '@/app/api/rider/profile/route';
+import * as r29 from '@/app/api/rider/state/route';
+import * as r30 from '@/app/api/slots/route';
+import * as r31 from '@/app/api/support/route';
+
+export const ROUTES: [string, RouteModule][] = [
+  ['/api/account/reorder/:orderId', r0 as unknown as RouteModule],
+  ['/api/admin/export', r1 as unknown as RouteModule],
+  ['/api/admin/upload', r2 as unknown as RouteModule],
+  ['/api/auth/login', r3 as unknown as RouteModule],
+  ['/api/auth/logout', r4 as unknown as RouteModule],
+  ['/api/auth/register', r5 as unknown as RouteModule],
+  ['/api/cron/run', r6 as unknown as RouteModule],
+  ['/api/dispatch/:orderId', r7 as unknown as RouteModule],
+  ['/api/dispatch/board', r8 as unknown as RouteModule],
+  ['/api/geocode', r9 as unknown as RouteModule],
+  ['/api/kitchen/exceptions', r10 as unknown as RouteModule],
+  ['/api/kitchen/items/:id', r11 as unknown as RouteModule],
+  ['/api/kitchen/orders/:id', r12 as unknown as RouteModule],
+  ['/api/kitchen/queue', r13 as unknown as RouteModule],
+  ['/api/menu', r14 as unknown as RouteModule],
+  ['/api/orders/:token/cancel', r15 as unknown as RouteModule],
+  ['/api/orders/:token/pay', r16 as unknown as RouteModule],
+  ['/api/orders/:token', r17 as unknown as RouteModule],
+  ['/api/orders/lookup', r18 as unknown as RouteModule],
+  ['/api/orders', r19 as unknown as RouteModule],
+  ['/api/partners/:key/webhook', r20 as unknown as RouteModule],
+  ['/api/payments/paystack/webhook', r21 as unknown as RouteModule],
+  ['/api/quote', r22 as unknown as RouteModule],
+  ['/api/realtime', r23 as unknown as RouteModule],
+  ['/api/realtime/ticket', r24 as unknown as RouteModule],
+  ['/api/rider/heartbeat', r25 as unknown as RouteModule],
+  ['/api/rider/location', r26 as unknown as RouteModule],
+  ['/api/rider/orders/:id', r27 as unknown as RouteModule],
+  ['/api/rider/profile', r28 as unknown as RouteModule],
+  ['/api/rider/state', r29 as unknown as RouteModule],
+  ['/api/slots', r30 as unknown as RouteModule],
+  ['/api/support', r31 as unknown as RouteModule],
+];

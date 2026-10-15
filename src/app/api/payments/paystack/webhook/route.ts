@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { handlePaymentWebhook } from '@/server/payments/service';
 import { log } from '@/server/log';
 

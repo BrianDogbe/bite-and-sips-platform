@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { subscribeRealtime } from './realtime-client';
 
 export type LiveStatus = 'connecting' | 'live' | 'polling' | 'offline';
 
@@ -49,28 +50,23 @@ export function useLive<T>(opts: { url: string; topics?: string[]; token?: strin
   useEffect(() => {
     if (!enabled) return;
     void refresh();
-    let es: EventSource | null = null;
     let poll: ReturnType<typeof setInterval> | null = null;
-    const qs = new URLSearchParams();
-    if (topics.length) qs.set('topics', topics.join(','));
-    if (token) qs.set('token', token);
     const startPolling = () => {
       if (!poll) poll = setInterval(() => void refresh(), pollMs);
     };
-    if (typeof EventSource !== 'undefined') {
-      es = new EventSource(`/api/realtime?${qs}`);
-      es.addEventListener('ready', () => {
+    const unsubscribe = subscribeRealtime({
+      topics,
+      token,
+      onReady: () => {
         setStatus('live');
         schedule(); // recover anything missed while disconnected
-      });
-      es.addEventListener('change', () => schedule());
-      es.onerror = () => {
+      },
+      onChange: () => schedule(),
+      onDown: () => {
         setStatus(navigator.onLine === false ? 'offline' : 'polling');
         startPolling();
-      };
-    } else {
-      setStatus('polling');
-    }
+      },
+    });
     // Always keep a slow safety poll even when live.
     const safety = setInterval(() => void refresh(), Math.max(pollMs * 2, 30000));
     startPolling();
@@ -82,7 +78,7 @@ export function useLive<T>(opts: { url: string; topics?: string[]; token?: strin
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      es?.close();
+      unsubscribe();
       if (poll) clearInterval(poll);
       clearInterval(safety);
       window.removeEventListener('online', onOnline);

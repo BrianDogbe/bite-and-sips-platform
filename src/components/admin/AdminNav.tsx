@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { subscribeRealtime } from '@/lib/realtime-client';
 import { BrandMark } from '../BrandMark';
 import { Icon, type IconName } from '../Icon';
 import { LogoutButton } from '../LoginForm';
@@ -47,11 +48,7 @@ export function AdminShell({ items, userName, roleLabel, alerts = [], children }
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => router.refresh(), 400);
     };
-    let es: EventSource | null = null;
-    if (typeof EventSource !== 'undefined') {
-      es = new EventSource('/api/realtime?topics=admin');
-      es.addEventListener('change', refresh);
-    }
+    const unsubscribe = subscribeRealtime({ topics: ['admin'], onChange: refresh });
     const poll = setInterval(refresh, 30000);
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh();
@@ -59,7 +56,7 @@ export function AdminShell({ items, userName, roleLabel, alerts = [], children }
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', refresh);
     return () => {
-      es?.close();
+      unsubscribe();
       clearInterval(poll);
       if (timer) clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { handler, noStore } from '@/server/http';
 import { availableSlots, loadSchedule, hoursSummary } from '@/server/scheduling';
 import { getAllSettings } from '@/server/settings';

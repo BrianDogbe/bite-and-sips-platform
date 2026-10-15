@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { DM_Serif_Display, Manrope } from 'next/font/google';
-import './globals.css';
+import './tailwind.css';
 
 const display = DM_Serif_Display({ subsets: ['latin'], weight: '400', style: ['normal', 'italic'], variable: '--font-dm-serif', display: 'swap' });
 const body = Manrope({ subsets: ['latin'], variable: '--font-manrope', display: 'swap' });

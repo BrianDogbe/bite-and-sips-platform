@@ -5,6 +5,8 @@ process.env.DATABASE_URL ??= 'postgres://unused';
 import { candidateSlots, computeSlots, isOpenAt, intervalsForLocalDay } from '@/server/scheduling';
 import { resolveZone, haversineM, deliveryFeeFor } from '@/server/zones';
 import { evaluatePromotion } from '@/server/pricing';
+import { signTicket, verifyTicket } from '@/server/realtime-auth';
+import { detectPortal } from '@/server/portal';
 import { zonedToUtc, localParts } from '@/lib/time';
 import { percentOf, parseCedisToPesewas, pesewasToCedisString } from '@/lib/money';
 import { canTransition, KITCHEN_TRANSITIONS, DELIVERY_TRANSITIONS, customerStage } from '@/lib/states';
@@ -137,4 +139,27 @@ test('permission matrix: least privilege', () => {
   assert.equal(canGrantRole(['manager'], 'owner'), false);
   assert.equal(canGrantRole(['owner'], 'owner'), true);
   assert.equal(permissionsFor(['customer']).size, 0);
+});
+
+test('realtime tickets: signed, tamper-proof and short-lived', () => {
+  const t = signTicket(['menu', 'kitchen'], 1_000);
+  assert.deepEqual(verifyTicket(t, 2_000), ['menu', 'kitchen']);
+  assert.equal(verifyTicket(t, 1_000 + 6 * 60 * 1000), null); // expired
+  const [p, sig] = t.split('.');
+  const forged = Buffer.from(JSON.stringify({ t: ['menu', 'admin'], exp: 9e15 })).toString('base64url');
+  assert.equal(verifyTicket(`${forged}.${sig}`, 2_000), null);
+  assert.equal(verifyTicket(`${p}.x${sig}`, 2_000), null);
+  assert.equal(verifyTicket('garbage', 2_000), null);
+  assert.equal(verifyTicket(undefined, 2_000), null);
+});
+
+test('portal detection: by path, by referer for shared endpoints, never by client claim', () => {
+  const base = { host: 'localhost', publicHost: 'localhost:3001', hosts: {} };
+  assert.equal(detectPortal({ ...base, path: '/api/kitchen/queue', referer: null }), 'kitchen');
+  assert.equal(detectPortal({ ...base, path: '/api/rider/state', referer: null }), 'rider');
+  assert.equal(detectPortal({ ...base, path: '/api/dispatch/board', referer: null }), 'admin');
+  assert.equal(detectPortal({ ...base, path: '/api/realtime', referer: 'http://localhost:3001/admin/orders' }), 'admin');
+  assert.equal(detectPortal({ ...base, path: '/api/realtime', referer: 'http://evil.example/admin' }), 'customer');
+  assert.equal(detectPortal({ ...base, path: '/api/menu', referer: null }), 'customer');
+  assert.equal(detectPortal({ host: 'rider.example.com', publicHost: 'rider.example.com', path: '/', referer: null, hosts: { rider: 'rider.example.com' } }), 'rider');
 });

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { handler, readJson, noStore, clientIp } from '@/server/http';
 import { quote } from '@/server/pricing';
 import { quoteRequestSchema } from '@/lib/validation';

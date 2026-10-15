@@ -19,6 +19,13 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },
+  // When BACKEND_URL is set (e.g. http://localhost:4000), every /api/* call is proxied to the separate backend service.
+  // Leave it unset to keep serving the API from this Next.js app.
+  async rewrites() {
+    const backend = process.env.BACKEND_URL?.replace(/\/$/, '');
+    if (!backend) return [];
+    return { beforeFiles: [{ source: '/api/:path*', destination: `${backend}/api/:path*` }] };
+  },
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },

@@ -104,3 +104,7 @@ See `docs/` for the details:
 | Third-party delivery APIs | Adapter interface plus manual booking. **No real Ghana partner API is integrated** (none was available with credentials). A dev-only *simulated* partner exists for demos |
 | Maps | Uses an OpenStreetMap embed plus device GPS. No geocoding of typed addresses (customers share GPS or pick an area, and unverified locations are flagged) |
 | Photo storage | Local disk (`UPLOAD_DIR`). Needs a persistent disk or an object-storage adapter on serverless hosts |
+
+## Backend and realtime
+The API can run as a separate Fastify service with Socket.IO WebSockets, and Tailwind CSS is available for the UI.
+See [docs/BACKEND.md](docs/BACKEND.md).

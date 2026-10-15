@@ -17,7 +17,11 @@
     "jobs:run": "tsx --conditions=react-server scripts/run-jobs.ts",
     "test": "tsx --conditions=react-server --test --test-concurrency=1 tests/unit-scheduling.test.ts tests/ordering.test.ts tests/payments.test.ts tests/delivery.test.ts tests/security.test.ts",
     "test:unit": "tsx --conditions=react-server --test tests/unit-scheduling.test.ts",
-    "verify": "npm run typecheck && npm test && npm run build"
+    "verify": "npm run typecheck && npm test && npm run build",
+    "backend:dev": "tsx watch --conditions=react-server --env-file=.env.local --tsconfig backend/tsconfig.json backend/src/server.ts",
+    "backend:start": "tsx --conditions=react-server --env-file=.env.local --tsconfig backend/tsconfig.json backend/src/server.ts",
+    "backend:routes": "tsx scripts/gen-backend-routes.ts",
+    "typecheck:backend": "tsc -p backend/tsconfig.json"
   },
   "dependencies": {
     "next": "^15.5.9",
@@ -25,13 +29,20 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "server-only": "^0.0.1",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "tsx": "^4.20.0",
-    "typescript": "^5.8.3"
-  }
+    "typescript": "^5.8.3",
+    "tailwindcss": "^4.1.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "postcss": "^8.5.0"
+  },
+  "workspaces": [
+    "backend"
+  ]
 }

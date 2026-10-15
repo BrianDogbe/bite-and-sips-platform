@@ -1,0 +1,27 @@
+/*
+ * Tailwind CSS v4, added next to the existing stylesheet so pages can be migrated one at a time.
+ *
+ *  - Preflight (Tailwind's global reset) is deliberately NOT imported: it would restyle every existing page.
+ *  - The existing stylesheet is imported into a lower "legacy" layer so Tailwind utilities win over old classes
+ *    when both are on the same element. Unlayered CSS would otherwise always beat utilities.
+ */
+@layer theme, legacy, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import './globals.css' layer(legacy);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* Brand tokens as Tailwind colours, reading the existing CSS variables (bg-espresso, text-sage, border-line …). */
+@theme inline {
+  --color-espresso: var(--espresso);
+  --color-ivory: var(--ivory);
+  --color-ivory-2: var(--ivory-2);
+  --color-sage: var(--sage-dark);
+  --color-sage-tint: var(--sage-tint);
+  --color-caramel: var(--caramel-text);
+  --color-caramel-tint: var(--caramel-tint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-muted: var(--muted);
+  --color-ink: var(--ink);
+  --color-danger: var(--danger);
+}

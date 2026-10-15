@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { subscribeRealtime } from '@/lib/realtime-client';
 
 /** Re-renders the current server page when relevant data changes (SSE), with a polling fallback. */
 export function LiveRefresh({ topics, pollMs = 30000 }: { topics: string[]; pollMs?: number }) {
@@ -16,16 +17,10 @@ export function LiveRefresh({ topics, pollMs = 30000 }: { topics: string[]; poll
         setAt(Date.now());
       }, 400);
     };
-    let es: EventSource | null = null;
-    if (typeof EventSource !== 'undefined') {
-      es = new EventSource(`/api/realtime?topics=${topics.join(',')}`);
-      es.addEventListener('ready', () => setLive(true));
-      es.addEventListener('change', refresh);
-      es.onerror = () => setLive(false);
-    }
+    const unsubscribe = subscribeRealtime({ topics, onReady: () => setLive(true), onChange: refresh, onDown: () => setLive(false) });
     const poll = setInterval(refresh, pollMs);
     return () => {
-      es?.close();
+      unsubscribe();
       clearInterval(poll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

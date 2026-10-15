@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { handler, assertSameOrigin, clientIp, noStore } from '@/server/http';
 import { startPayment } from '@/server/payments/service';
 

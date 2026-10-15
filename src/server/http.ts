@@ -1,5 +1,5 @@
 import 'server-only';
-import { NextResponse } from 'next/server';
+import { NextResponse } from '@/server/response';
 import { ZodError } from 'zod';
 import { isDomainError } from './errors';
 import { env } from './env';
