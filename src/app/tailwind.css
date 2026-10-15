@@ -5,8 +5,9 @@
  *  - The existing stylesheet is imported into a lower "legacy" layer so Tailwind utilities win over old classes
  *    when both are on the same element. Unlayered CSS would otherwise always beat utilities.
  */
-@layer theme, legacy, utilities;
+@layer theme, base, components, legacy, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
+@import './base.css' layer(base);
 @import './globals.css' layer(legacy);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
@@ -33,5 +34,210 @@
     to {
       transform: translateX(-100%);
     }
+  }
+}
+
+/*
+ * Shared building blocks (layout helpers, buttons, form fields, notices, badges).
+ * Written with Tailwind utilities via @apply. The layer sits below the old stylesheet so any page-specific
+ * override that still lives there keeps winning, and above nothing but the theme.
+ */
+@layer components {
+  /* ---------- layout ---------- */
+  .wrap {
+    @apply mx-auto w-full max-w-[var(--maxw)];
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
+  }
+  @supports (padding: max(0px)) {
+    .wrap {
+      padding-left: max(var(--gutter, 16px), env(safe-area-inset-left));
+      padding-right: max(var(--gutter, 16px), env(safe-area-inset-right));
+    }
+  }
+  .stack > * + * {
+    margin-top: var(--stack, 1rem);
+  }
+  .row {
+    @apply flex flex-wrap items-center gap-3;
+  }
+  .row.between {
+    @apply justify-between max-[380px]:flex-wrap max-[380px]:gap-2;
+  }
+  .grow {
+    @apply min-w-0 flex-auto;
+  }
+  .muted {
+    @apply text-muted;
+  }
+  .small {
+    @apply text-[0.875rem];
+  }
+  .tnum {
+    @apply tabular-nums;
+  }
+  .nowrap {
+    @apply whitespace-nowrap;
+  }
+  .hr {
+    @apply my-5 border-0 border-t border-line;
+  }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    --bg: var(--surface);
+    --fg: var(--espresso);
+    --bd: var(--line-strong);
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[var(--r-md)] border-[1.5px] border-[color:var(--bd)] bg-[color:var(--bg)] px-[18px] text-[color:var(--fg)] no-underline;
+    font: 700 1rem/1 var(--font-body);
+    transition: background 0.15s, border-color 0.15s, transform 0.08s;
+  }
+  .btn:hover {
+    @apply border-espresso bg-ivory;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn[disabled],
+  .btn[aria-disabled='true'] {
+    @apply cursor-not-allowed opacity-50;
+    transform: none;
+  }
+  .btn.primary {
+    --bg: var(--espresso);
+    --fg: #ffffff;
+    --bd: var(--espresso);
+  }
+  .btn.primary:hover,
+  .btn.leaf:hover {
+    background: var(--espresso-2);
+    border-color: var(--espresso-2);
+  }
+  .btn.danger:hover {
+    background: var(--danger);
+    filter: brightness(0.92);
+  }
+  .btn.leaf {
+    --bg: var(--leaf);
+    --fg: #fff;
+    --bd: var(--leaf);
+  }
+  .btn.danger {
+    --bg: var(--danger);
+    --fg: #fff;
+    --bd: var(--danger);
+  }
+  .btn.ghost {
+    --bg: transparent;
+    --bd: transparent;
+  }
+  .btn.block {
+    @apply w-full;
+  }
+  .btn.lg {
+    @apply min-h-[54px] px-6 text-[1.08rem];
+  }
+  .btn.sm {
+    @apply min-h-9 px-3 text-[0.9rem];
+  }
+  .linkish {
+    @apply cursor-pointer border-0 bg-transparent p-0 font-bold text-espresso underline underline-offset-[3px];
+    font: inherit;
+    font-weight: 700;
+  }
+
+  /* ---------- forms ---------- */
+  .field {
+    @apply grid gap-1.5;
+  }
+  .field > label,
+  .label {
+    @apply text-[0.95rem] font-bold;
+  }
+  .hint {
+    @apply text-[0.85rem] text-muted;
+  }
+  .input,
+  .select,
+  .textarea {
+    @apply min-h-[46px] w-full rounded-[var(--r-sm)] border-[1.5px] border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 py-2.5 text-inherit;
+    font: inherit;
+  }
+  .textarea {
+    @apply min-h-[90px] resize-y;
+  }
+  .input:focus,
+  .select:focus,
+  .textarea:focus {
+    @apply border-espresso outline-none;
+    box-shadow: 0 0 0 3px var(--leaf-3);
+  }
+  .input[aria-invalid='true'] {
+    @apply border-danger;
+  }
+  .field-error {
+    @apply text-[0.875rem] font-bold text-danger;
+  }
+  .check {
+    @apply flex cursor-pointer items-start gap-2.5;
+  }
+  .check input {
+    @apply mt-0.5 size-5 flex-none accent-espresso;
+  }
+  .grid-2 {
+    @apply grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-3.5;
+  }
+
+  /* ---------- feedback ---------- */
+  .alert {
+    @apply rounded-[var(--r-md)] border-[1.5px] px-3.5 py-3 text-[0.95rem];
+  }
+  .alert.error {
+    @apply border-[#f2b8b2] bg-[color:var(--danger-bg)] text-[#7a1a12];
+  }
+  .alert.ok {
+    @apply border-[#b5dfc5] bg-[color:var(--ok-bg)] text-[#10522f];
+  }
+  .alert.warn {
+    @apply border-[#f0d18f] bg-[color:var(--warn-bg)] text-[#5e3a00];
+  }
+  .alert.info {
+    @apply border-[#b8cdee] bg-[color:var(--info-bg)] text-[#173f73];
+  }
+  .badge {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-transparent px-[9px] py-0.5 text-[0.8rem] font-bold leading-[1.6];
+  }
+  .badge::before {
+    @apply size-[7px] rounded-full bg-current;
+    content: '';
+  }
+  .badge.ok {
+    @apply bg-[color:var(--ok-bg)] text-[color:var(--ok)];
+  }
+  .badge.warn {
+    @apply bg-[color:var(--warn-bg)] text-[color:var(--warn)];
+  }
+  .badge.danger {
+    @apply bg-[color:var(--danger-bg)] text-danger;
+  }
+  .badge.info {
+    @apply bg-[color:var(--info-bg)] text-[color:var(--info)];
+  }
+  .badge.neutral {
+    @apply bg-[#efe8d8] text-muted;
+  }
+  .badge.plain::before {
+    @apply hidden;
+  }
+  .empty {
+    @apply px-4 py-10 text-center text-muted;
+  }
+  .empty h3 {
+    @apply text-[color:var(--ink)];
+  }
+  .spinner {
+    @apply inline-block size-[18px] rounded-full border-[2.5px] border-current;
+    border-right-color: transparent;
+    animation: spin 0.8s linear infinite;
   }
 }
