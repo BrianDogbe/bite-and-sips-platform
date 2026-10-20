@@ -99,7 +99,7 @@ export default async function AboutPage() {
                   <Image src={VALUE_PHOTOS[i % VALUE_PHOTOS.length].src} alt={VALUE_PHOTOS[i % VALUE_PHOTOS.length].alt} fill sizes="(max-width: 860px) 100vw, 62vw" className="object-cover" />
                 </div>
                 <article className="flex flex-col justify-start rounded-2xl border border-[var(--border)] bg-white p-[clamp(24px,3vw,40px)] shadow-[var(--shadow-1,0_6px_22px_rgba(53,37,31,0.08))]">
-                  <span className="font-[family-name:var(--font-display)] text-[2.2rem] leading-none text-[color:var(--caramel)]">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="font-[family-name:var(--font-display)] text-[2.2rem] leading-none text-caramel">{String(i + 1).padStart(2, '0')}</span>
                   <h3 className="mb-3.5 mt-3 text-[clamp(1.3rem,1.8vw,1.6rem)]">{v.title}</h3>
                   <p className="m-0 text-[1.02rem] leading-[1.65] text-muted">{v.text}</p>
                 </article>
@@ -121,7 +121,7 @@ export default async function AboutPage() {
                   {photo && <Image src={photo} alt="" fill sizes="(max-width: 860px) 100vw, 50vw" className="z-[-2] object-cover transition-transform duration-500 ease-[ease] group-hover:scale-105" />}
                   <span className="absolute inset-0 z-[-1] bg-[linear-gradient(to_top,rgba(53,37,31,0.88),rgba(53,37,31,0.15)_70%)]" />
                   <span className="flex flex-col gap-1.5 p-[clamp(16px,2vw,26px)]">
-                    <span className="text-[0.74rem] font-extrabold uppercase tracking-[0.12em] text-[#f0e8db]">
+                    <span className="text-[0.78rem] font-extrabold uppercase tracking-[0.12em] text-[#f0e8db]">
                       {c.count} {c.count === 1 ? 'dish' : 'dishes'}
                     </span>
                     <h3 className="m-0 text-[clamp(1.5rem,2.2vw,2.2rem)] text-white">{c.name}</h3>

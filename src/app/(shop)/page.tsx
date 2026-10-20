@@ -18,7 +18,7 @@ function StepCard({ n, title, href, footer, highlight, children }: { n: number; 
   return (
     <article className={`group flex flex-col px-7 pb-6 pt-7 text-ivory transition-colors duration-[250ms] motion-reduce:transition-none ${highlight ? 'bg-sage' : 'bg-espresso hover:bg-sage'}`}>
       <div className="mb-7 flex items-center justify-between">
-        <span className="text-[0.8rem] font-extrabold uppercase tracking-[0.16em] text-[#d9cfc0]">Step {String(n).padStart(2, '0')}</span>
+        <span className={`text-[0.8rem] font-extrabold uppercase tracking-[0.16em] ${highlight ? 'text-ivory' : 'text-[#d9cfc0] group-hover:text-ivory'}`}>Step {String(n).padStart(2, '0')}</span>
         <span className="flex gap-1.5" aria-hidden="true">
           {[1, 2, 3, 4].map((d) => (
             <i key={d} className={`block h-0.5 w-4 ${d <= n ? 'bg-[var(--caramel)]' : 'bg-[rgba(247,242,233,0.3)]'}`} />
@@ -26,7 +26,7 @@ function StepCard({ n, title, href, footer, highlight, children }: { n: number; 
         </span>
       </div>
       <h3 className="mb-3 mt-0 font-[family-name:var(--font-display)] text-[1.6rem] font-normal leading-[1.15] text-white">{title}</h3>
-      <p className="m-0 mb-5 text-[0.98rem] leading-[1.55] text-[#e6ddcf]">{children}</p>
+      <p className={`m-0 mb-5 text-[0.98rem] leading-[1.55] ${highlight ? 'text-ivory' : 'text-[#e6ddcf] group-hover:text-ivory'}`}>{children}</p>
       <Link href={href} className="mt-auto flex items-center justify-between border-t border-[rgba(247,242,233,0.2)] pt-4 text-[0.8rem] font-extrabold uppercase tracking-[0.14em] text-white no-underline">
         <span>{footer}</span>
         <span className="grid size-10 place-items-center rounded-full border border-[rgba(247,242,233,0.6)] text-[1.1rem] tracking-normal transition-[background-color,color] duration-200 group-hover:border-[var(--caramel)] group-hover:bg-[var(--caramel)] group-hover:text-espresso motion-reduce:transition-none" aria-hidden="true">→</span>

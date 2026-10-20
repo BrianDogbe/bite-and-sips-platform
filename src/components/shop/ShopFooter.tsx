@@ -10,9 +10,10 @@ const inner = 'w-full px-[clamp(20px,5vw,80px)]';
 const para = 'm-0 mb-3.5 leading-[1.6] text-[#e6ddcf]';
 const h3 =
   "mb-[30px] mt-0 font-[family-name:var(--font-body)] text-[1.15rem] font-extrabold text-white after:mt-2 after:block after:h-[3px] after:w-11 after:bg-[repeating-linear-gradient(90deg,var(--caramel)_0_12px,transparent_12px_16px)] after:content-['']";
-const list = 'm-0 grid list-none gap-1.5 p-0';
+const list = 'm-0 grid list-none gap-1 p-0';
+const contactList = 'm-0 grid list-none gap-3.5 p-0';
 const link =
-  "text-[#e6ddcf] no-underline hover:text-[var(--caramel)] before:mr-2.5 before:inline-block before:text-[#c9bfb2] before:content-['→'] hover:before:text-[var(--caramel)]";
+  "inline-flex min-h-11 items-center text-[#e6ddcf] no-underline hover:text-[var(--caramel)] before:mr-2.5 before:inline-block before:text-[#c9bfb2] before:content-['→'] hover:before:text-[var(--caramel)]";
 const plain = 'text-[#e6ddcf] no-underline hover:text-[var(--caramel)]';
 const soc =
   'grid size-10 place-items-center rounded-full bg-white text-[0.95rem] text-espresso no-underline hover:bg-[var(--caramel)] hover:text-espresso';
@@ -93,7 +94,7 @@ export function ShopFooter({ sf, menu }: { sf: Storefront; menu: Menu }) {
 
             <div>
               <h3 className={h3}>Contact Us</h3>
-              <ul className={list}>
+              <ul className={contactList}>
                 {r.phone && (
                   <li className="flex items-start gap-4 text-base leading-[1.45]">
                     <span className={ico} aria-hidden="true">
