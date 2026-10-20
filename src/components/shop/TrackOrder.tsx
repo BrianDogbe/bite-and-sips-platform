@@ -8,9 +8,9 @@ import { CUSTOMER_STAGE_LABELS, type CustomerStage } from '@/lib/states';
 import { MapEmbed } from './MapEmbed';
 import { Icon } from '../Icon';
 import type { TrackingView } from '@/server/orders/queries';
-import { BackLink } from './BackLink';
 import { PRICE, CART_LINE, MODS, TOTALS, TOTAL_LINE, TOTAL_GRAND, TWO_COL, SIDEBAR } from '../ui';
 import { C_LIVE_PILL } from '@/components/ui';
+import { ACTIVE_ORDER_STORE, ACTIVE_ORDER_EVENT } from './ShopHeader';
 
 const PK_LABEL = 'text-[0.8rem] uppercase tracking-[0.08em] opacity-75';
 const PK_VALUE = 'text-[length:clamp(1.6rem,6vw,2.2rem)] tracking-[0.06em] max-[380px]:tracking-[0.03em]';
@@ -31,6 +31,8 @@ function dotCls(state: 'done' | 'current' | 'todo') {
 }
 
 type View = TrackingView;
+
+const FINISHED: CustomerStage[] = ['delivered', 'completed', 'cancelled'];
 
 function ago(ms: number) {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -59,6 +61,35 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
   }, []);
 
   const stage = v.stage as CustomerStage;
+  const finished = FINISHED.includes(stage);
+  const [copied, setCopied] = useState(false);
+
+  // Remember this order on the device while it's in progress; forget it once it's done.
+  useEffect(() => {
+    try {
+      const cur = JSON.parse(localStorage.getItem(ACTIVE_ORDER_STORE) || 'null') as { token?: string } | null;
+      if (!finished) localStorage.setItem(ACTIVE_ORDER_STORE, JSON.stringify({ token, orderNumber: o.orderNumber, savedAt: Date.now() }));
+      else if (cur?.token === token) localStorage.removeItem(ACTIVE_ORDER_STORE);
+      window.dispatchEvent(new Event(ACTIVE_ORDER_EVENT));
+    } catch {
+      /* storage unavailable: the page still works, the header just can't link back */
+    }
+  }, [token, o.orderNumber, finished]);
+
+  // Built after hydration so the server and browser render the same markup.
+  const [pageUrl, setPageUrl] = useState('');
+  useEffect(() => setPageUrl(`${window.location.origin}/track/${token}`), [token]);
+  const shareText = `My ${v.restaurant.name} order ${o.orderNumber}: ${pageUrl}`;
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(pageUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      window.prompt('Copy this link to your order:', pageUrl);
+    }
+  }
+
   const tl = v.timeline as CustomerStage[];
   const idx = tl.indexOf(stage);
   const sameDay = localDateKey(new Date(o.promisedAt), tz) === localDateKey(new Date(), tz);
@@ -100,7 +131,6 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
     <>
       <section className="bg-espresso pb-9 pt-7 text-white [@media(max-height:480px)_and_(orientation:landscape)]:py-4">
         <div className="mx-auto w-full max-w-[var(--maxw)] px-[var(--gutter)]">
-      <BackLink href="/menu" label="Back to menu" light />
           <div className="row between">
             <p style={{ margin: 0 }}>
               Order <strong className="tnum">{o.orderNumber}</strong>
@@ -141,6 +171,30 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
       </section>
 
       <div className="mx-auto w-full max-w-[var(--maxw)] px-[var(--gutter)] pb-[clamp(72px,10vw,144px)] pt-6">
+        {!finished && (
+          <section className="panel mb-5 grid gap-3" aria-labelledby="keep-h">
+            <div>
+              <h2 id="keep-h" className="m-0 mb-1 text-[1.25rem]">
+                Keep this page
+              </h2>
+              <p className="m-0 text-[0.95rem]">
+                It’s the quickest way back to your order. Send the link to yourself on WhatsApp, or copy it. If you close it, tap <strong>Your order</strong> at the top of our site, or track it with order number <strong className="tnum">{o.orderNumber}</strong> and your phone number.
+              </p>
+            </div>
+            <div className="row">
+              <a className="btn leaf" href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer">
+                <Icon name="chat" size={18} /> Send to WhatsApp
+              </a>
+              <button type="button" className="btn" onClick={copyLink}>
+                <Icon name={copied ? 'check' : 'receipt'} size={18} /> {copied ? 'Link copied' : 'Copy link'}
+              </button>
+            </div>
+            <p className="hint m-0">This link shows your order{o.fulfillmentType === 'delivery' ? ' and delivery PIN' : ''}, so only share it with someone you trust.</p>
+            <span className="sr-only" aria-live="polite">
+              {copied ? 'Link copied' : ''}
+            </span>
+          </section>
+        )}
         {error && <p className="alert warn">{error}</p>}
         {o.isTest && <p className="mb-3.5 mt-0 inline-block rounded-full bg-caramel-tint px-2.5 py-1 text-[0.8rem] font-semibold text-caramel">Test order · simulated payment</p>}
         {fromPayment && o.status === 'pending_payment' && o.paymentStatus !== 'failed' && (
@@ -380,6 +434,9 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
                 )}
                 <Link className="btn block" href={`/help?t=${encodeURIComponent(token)}`}>
                   Report a problem with this order
+                </Link>
+                <Link className="btn block" href="/menu">
+                  Order more
                 </Link>
                 {v.canCancel && !cancelOpen && (
                   <button className="btn ghost block" style={{ color: 'var(--danger)' }} onClick={() => setCancelOpen(true)}>

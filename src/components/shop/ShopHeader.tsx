@@ -6,11 +6,43 @@ import { BrandMark } from '../BrandMark';
 import { Icon } from '../Icon';
 import { useCart } from '@/lib/cart';
 
+/** The order in progress on this device (written by the tracking page), so customers can get back to it if they closed that page. */
+export const ACTIVE_ORDER_STORE = 'bs_active_order';
+export const ACTIVE_ORDER_EVENT = 'bs-active-order';
+const ACTIVE_ORDER_MAX_AGE = 24 * 60 * 60 * 1000;
+
+function readActiveOrder(): { token: string; orderNumber: string } | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(ACTIVE_ORDER_STORE) || 'null') as { token?: string; orderNumber?: string; savedAt?: number } | null;
+    if (!v?.token || !v.orderNumber) return null;
+    if (!v.savedAt || Date.now() - v.savedAt > ACTIVE_ORDER_MAX_AGE) {
+      localStorage.removeItem(ACTIVE_ORDER_STORE);
+      return null;
+    }
+    return { token: v.token, orderNumber: v.orderNumber };
+  } catch {
+    return null;
+  }
+}
+
 export function ShopHeader({ name }: { name: string }) {
   const path = usePathname();
   const { count, ready } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [active, setActive] = useState<{ token: string; orderNumber: string } | null>(null);
+  useEffect(() => {
+    const sync = () => setActive(readActiveOrder());
+    sync();
+    window.addEventListener(ACTIVE_ORDER_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(ACTIVE_ORDER_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [path]);
+  // No need for the shortcut on the order's own page.
+  const showActive = active && path !== `/track/${active.token}`;
   const home = path === '/' || path === '/menu' || path === '/about';
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -87,6 +119,18 @@ export function ShopHeader({ name }: { name: string }) {
           >
             <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
           </button>
+          {showActive && (
+            <Link
+              href={`/track/${active.token}`}
+              className={`inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] px-3.5 font-bold no-underline max-[400px]:px-2.5 ${overHero ? 'border-[rgba(255,255,255,0.75)] text-white hover:bg-[rgba(255,255,255,0.18)]' : 'border-espresso text-espresso hover:bg-ivory-2'}`}
+              aria-label={`Your order ${active.orderNumber} is in progress. Track it`}
+            >
+              <span className="size-2 rounded-full bg-sage motion-safe:animate-pulse" aria-hidden="true" />
+              <span className="max-[400px]:hidden">Your order</span>
+              <span className="hidden max-[400px]:inline">Order</span>
+              <span className="tnum font-semibold max-[900px]:hidden">{active.orderNumber}</span>
+            </Link>
+          )}
           <Link href="/checkout" className="btn primary sm relative" aria-label={`Cart, ${ready ? count : 0} items`}>
             <Icon name="cart" size={18} />
             <span className="inline-grid h-[22px] min-w-[22px] place-items-center rounded-full bg-[var(--caramel)] px-1.5 text-[0.8rem] text-espresso" aria-hidden="true">
