@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { headers } from 'next/headers';
 import { getStorefront, getMenuForStorefront, publicZones } from '@/server/storefront';
 import { summarizeHours } from '@/components/shop/HoursList';
 import { DEFAULT_STORY } from '@/lib/about-story';
 import { formatGHS } from '@/lib/money';
 import { formatLocalDateTime } from '@/lib/time';
 import { StepTile } from '@/components/shop/StepTile';
-import { StoryVideo } from '@/components/shop/StoryVideo';
+import { StoryPlayer } from '@/components/shop/StoryPlayer';
 import type { ClientMenuItem } from '@/components/shop/types';
 
 export const dynamic = 'force-dynamic';
@@ -36,10 +37,11 @@ function StepCard({ n, title, href, footer, highlight, children }: { n: number; 
 }
 
 export default async function Home() {
-  const [sf, menu, zones] = await Promise.all([
+  const [sf, menu, zones, hdrs] = await Promise.all([
     getStorefront(),
     getMenuForStorefront(),
     publicZones(),
+    headers(),
   ]);
   const r = sf.restaurant;
   const tz = r.timezone;
@@ -77,8 +79,13 @@ export default async function Home() {
   const aboutText = (r.about ? r.about.split(/\n{2,}/)[0] : DEFAULT_STORY[0]).trim();
   const aboutSentences = aboutText.split(/(?<=\.)\s+/);
   const aboutTeaser = aboutSentences[0].length > 200 ? `${aboutSentences[0].slice(0, 200).replace(/\s+\S*$/, '')}…` : aboutSentences.slice(0, 2).join(' ').length <= 240 ? aboutSentences.slice(0, 2).join(' ') : aboutSentences[0];
-  const activeClosure = sf.closures.find((c) => new Date(c.startsAt) <= new Date());
-  const upcomingClosure = sf.closures.find((c) => new Date(c.startsAt) > new Date());
+  const now = new Date();
+  const activeClosure = sf.closures.find((c) => new Date(c.startsAt) <= now);
+  const upcomingClosure = sf.closures.find((c) => new Date(c.startsAt) > now);
+
+  const saveData = hdrs.get('save-data')?.toLowerCase() === 'on';
+  const tagline = (r.tagline || 'Good food. Good mood.').split(/(?<=[.!])\s+/).map((s) => s.replace(/[.!]$/, '')).filter(Boolean);
+  const marqueeWords = [...tagline, ...groups.map((g) => g.name)];
 
   return (
     <>
@@ -147,11 +154,11 @@ export default async function Home() {
         </div>
       </section>
 
-      <div className="group flex select-none overflow-hidden bg-[var(--caramel)] py-3.5 text-ivory motion-reduce:overflow-x-auto" aria-label="Good food. Good mood. Fresh ingredients, great taste, delivery and pickup.">
+      <div className="group flex select-none overflow-hidden bg-[var(--caramel)] py-4 text-espresso" aria-hidden="true">
         {[0, 1].map((n) => (
-          <div className="flex min-w-full shrink-0 animate-marquee justify-around group-hover:[animation-play-state:paused] motion-reduce:animate-none" key={n} aria-hidden={n === 1 ? 'true' : undefined}>
-            {['Good food', 'Good mood', 'Fresh ingredients', 'Great taste', 'Pickup & delivery', 'Shawarma', 'Sandwiches', 'Salads', 'Combo', 'Drinks'].map((t) => (
-              <span key={t} className="inline-flex items-center whitespace-nowrap px-5 font-[family-name:var(--font-display)] text-[length:clamp(1.1rem,2vw,1.5rem)] after:ml-10 after:size-2 after:rounded-full after:bg-espresso after:content-['']">
+          <div className="flex min-w-full shrink-0 animate-marquee justify-around [animation-duration:48s] group-hover:[animation-play-state:paused] motion-reduce:animate-none" key={n}>
+            {marqueeWords.map((t) => (
+              <span key={t} className="inline-flex items-center whitespace-nowrap px-6 font-[family-name:var(--font-display)] text-[length:clamp(1.3rem,2.4vw,1.85rem)] after:ml-12 after:size-1.5 after:rounded-full after:bg-espresso after:content-['']">
                 {t}
               </span>
             ))}
@@ -174,7 +181,7 @@ export default async function Home() {
             <h2 id="featured-title" className="mb-1 mt-0 text-[length:clamp(1.7rem,3.4vw,2.4rem)] after:mt-2.5 after:block after:h-[3px] after:w-11 after:rounded-sm after:bg-[var(--caramel)] after:content-['']">From the kitchen</h2>
             <p className="m-0 max-w-[52ch] text-muted">Pick a category to start with. The full menu has everything.</p>
           </div>
-          <Link href="/menu" className="group/link inline-flex items-center gap-2 border-b-2 border-transparent pb-0.5 font-extrabold text-espresso no-underline hover:border-[var(--caramel)]">
+          <Link href="/menu" className="group/link inline-flex min-h-11 items-center gap-2 border-b-2 border-transparent pb-0.5 font-extrabold text-espresso no-underline hover:border-[var(--caramel)]">
             See the full menu <span aria-hidden="true" className="transition-transform duration-200 group-hover/link:translate-x-1 motion-reduce:transition-none">→</span>
           </Link>
         </div>
@@ -191,18 +198,17 @@ export default async function Home() {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-1 flex-col gap-1.5 px-[18px] pb-3.5 pt-4">
-                  <div className="flex justify-between gap-3 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-[rgba(53,37,31,0.75)]">
-                    <span>Category</span>
-                    <span>
+                <div className="flex flex-1 flex-col gap-2 px-5 pb-4 pt-[18px]">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="font-[family-name:var(--font-display)] text-[1.6rem] leading-[1.1] text-espresso">{g.name}</span>
+                    <span className="flex-none text-[0.9rem] font-bold tabular-nums text-espresso">
                       {g.count} {g.count === 1 ? 'item' : 'items'}
                     </span>
-                  </div>
-                  <span className="font-[family-name:var(--font-display)] text-[1.4rem] leading-[1.15] text-espresso">{g.name}</span>
-                  {g.blurb && <span className="line-clamp-2 min-h-[2.8em] text-[0.92rem] leading-[1.4] text-espresso">{g.blurb}</span>}
-                  <span className="mt-auto flex items-center justify-between pt-0.5 text-[1.05rem] font-extrabold text-espresso">
-                    <span>View</span>
-                    <span aria-hidden="true" className="text-espresso transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none">→</span>
+                  </span>
+                  {g.blurb && <span className="line-clamp-2 min-h-[2.8em] text-[0.95rem] leading-[1.4] text-espresso">{g.blurb}</span>}
+                  <span className="mt-auto flex items-center justify-between border-t border-[rgba(53,37,31,0.25)] pt-3 text-[1.02rem] font-extrabold text-espresso">
+                    <span>See {g.name.toLowerCase()}</span>
+                    <span aria-hidden="true" className="grid size-9 place-items-center rounded-full bg-espresso text-ivory transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none">→</span>
                   </span>
                 </div>
               </Link>
@@ -216,7 +222,7 @@ export default async function Home() {
         )}
       </section>
 
-      <StoryVideo src="/brand/story.mp4" poster="/brand/hero-bg.jpg" title="Good food. Good mood." subtitle="Made fresh, ready for pickup or on its way to you." />
+      {!saveData && <StoryPlayer src="/brand/story.mp4" poster="/brand/hero-bg.jpg" title="Good food. Good mood." subtitle="Made fresh, ready for pickup or on its way to you." />}
 
       <section className="border-y border-[var(--border)] bg-ivory-2 py-[clamp(72px,10vw,144px)]" aria-labelledby="how-title">
         <div className="mx-auto w-full max-w-[var(--maxw)] px-[var(--gutter)]">
@@ -281,7 +287,7 @@ export default async function Home() {
                     <div>
                       <strong className="block text-[1.1rem] text-white">Call us</strong>
                       <small className="mt-0.5 block text-[0.95rem] text-[#d9cfc0]">
-                        <a className="text-white" href={`tel:${r.phone.replace(/\s/g, '')}`}>{r.phone}</a>
+                        <a className="inline-flex min-h-11 items-center text-white" href={`tel:${r.phone.replace(/\s/g, '')}`}>{r.phone}</a>
                       </small>
                     </div>
                   </li>
@@ -324,7 +330,7 @@ export default async function Home() {
                 <p className="m-0">Delivery is paused at the moment. Pickup is still open.</p>
               </>
             )}
-            <Link href="/menu" className="group/link mt-auto inline-flex items-center gap-2 self-start border-b-2 border-transparent pb-0.5 font-extrabold text-espresso no-underline hover:border-[var(--caramel)]">
+            <Link href="/menu" className="group/link mt-auto inline-flex min-h-11 items-center gap-2 self-start border-b-2 border-transparent pb-0.5 font-extrabold text-espresso no-underline hover:border-[var(--caramel)]">
               Order for delivery <span aria-hidden="true" className="transition-transform duration-200 group-hover/link:translate-x-1 motion-reduce:transition-none">→</span>
             </Link>
           </article>
@@ -340,7 +346,7 @@ export default async function Home() {
             <Link href="/about" className="btn primary">
               Read our story
             </Link>
-            <Link href="/help" className="group/link inline-flex items-center gap-2 border-b-2 border-transparent pb-0.5 font-extrabold text-espresso no-underline hover:border-[var(--caramel)]">
+            <Link href="/help" className="group/link inline-flex min-h-11 items-center gap-2 border-b-2 border-transparent pb-0.5 font-extrabold text-espresso no-underline hover:border-[var(--caramel)]">
               Need help with an order? <span aria-hidden="true" className="transition-transform duration-200 group-hover/link:translate-x-1 motion-reduce:transition-none">→</span>
             </Link>
           </div>
