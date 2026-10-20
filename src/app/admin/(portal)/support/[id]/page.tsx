@@ -9,6 +9,7 @@ import { formatLocalDateTime } from '@/lib/time';
 import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import { isDomainError } from '@/server/errors';
 import type { ActionResult } from '@/lib/action-result';
+import { C_ADMIN_TOP, C_EVENT_LIST, C_TWO_COL } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Support case' };
@@ -38,8 +39,8 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
   const notes = d.notes as unknown as { id: string; note: string; authorName: string | null; createdAt: Date }[];
   return (
     <>
-      <div className="admin-top"><div><p className="muted" style={{ margin: 0 }}><Link href="/admin/support">Support</Link></p><h1>{c.caseNumber}</h1></div></div>
-      <div className="two-col">
+      <div className={`${C_ADMIN_TOP} admin-top`}><div><p className="muted" style={{ margin: 0 }}><Link href="/admin/support">Support</Link></p><h1>{c.caseNumber}</h1></div></div>
+      <div className={C_TWO_COL}>
         <section className="panel stack">
           <dl className="kv">
             <dt>Opened</dt><dd>{formatLocalDateTime(c.createdAt, tz)}</dd>
@@ -51,7 +52,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
           </dl>
           <blockquote style={{ margin: 0, padding: 12, background: 'var(--ivory)', borderRadius: 10 }}>{c.message}</blockquote>
           <h2 style={{ fontSize: '1.1rem' }}>Internal notes</h2>
-          {notes.length === 0 ? <p className="muted">No notes yet.</p> : <ul className="event-list">{notes.map((n) => <li key={n.id}><span className="small muted">{formatLocalDateTime(n.createdAt, tz)}</span><span>{n.note} <span className="muted small">by {n.authorName}</span></span></li>)}</ul>}
+          {notes.length === 0 ? <p className="muted">No notes yet.</p> : <ul className={C_EVENT_LIST}>{notes.map((n) => <li key={n.id}><span className="small muted">{formatLocalDateTime(n.createdAt, tz)}</span><span>{n.note} <span className="muted small">by {n.authorName}</span></span></li>)}</ul>}
         </section>
         <section className="panel">
           <ActionForm action={update.bind(null, id)} className="stack" resetOnSuccess>

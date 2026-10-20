@@ -14,6 +14,7 @@ import { ReorderButton } from '@/components/shop/ReorderButton';
 import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import { saveNotificationPrefs } from './actions';
 import { BackLink } from '@/components/shop/BackLink';
+import { C_TWO_COL } from '@/components/ui';
 
 export const metadata: Metadata = { title: 'Your account' };
 export const dynamic = 'force-dynamic';
@@ -40,7 +41,7 @@ export default async function AccountPage() {
         <h1>Hi, {user.fullName.split(' ')[0]}</h1>
         <LogoutButton to="/" />
       </div>
-      <div className="two-col" style={{ marginTop: 12 }}>
+      <div className={C_TWO_COL} style={{ marginTop: 12 }}>
         <section className="panel">
           <h2>Your orders</h2>
           {orders.length === 0 ? (

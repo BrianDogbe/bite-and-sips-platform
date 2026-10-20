@@ -87,7 +87,7 @@ export function ShopHeader({ name }: { name: string }) {
           >
             <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
           </button>
-          <Link href="/checkout" className="btn primary sm cart-btn" aria-label={`Cart, ${ready ? count : 0} items`}>
+          <Link href="/checkout" className="btn primary sm relative" aria-label={`Cart, ${ready ? count : 0} items`}>
             <Icon name="cart" size={18} />
             <span className="inline-grid h-[22px] min-w-[22px] place-items-center rounded-full bg-[var(--caramel)] px-1.5 text-[0.8rem] text-espresso" aria-hidden="true">
               {ready ? count : 0}

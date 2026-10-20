@@ -2,7 +2,7 @@
 export function MapEmbed({ lat, lng, title, zoomDelta = 0.008 }: { lat: number; lng: number; title: string; zoomDelta?: number }) {
   const bbox = [lng - zoomDelta, lat - zoomDelta * 0.6, lng + zoomDelta, lat + zoomDelta * 0.6].map((n) => n.toFixed(5)).join(',');
   const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat.toFixed(6)},${lng.toFixed(6)}`;
-  return <iframe className="map-frame" src={src} title={title} loading="lazy" referrerPolicy="no-referrer" />;
+  return <iframe className="aspect-[16/10] w-full rounded-[var(--r-md)] border-0 bg-[var(--leaf-3)]" src={src} title={title} loading="lazy" referrerPolicy="no-referrer" />;
 }
 
 export function directionsUrl(lat: number | null, lng: number | null, address?: string | null) {

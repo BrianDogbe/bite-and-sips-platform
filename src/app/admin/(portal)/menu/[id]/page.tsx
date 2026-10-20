@@ -5,6 +5,7 @@ import { loadMenu } from '@/server/menu';
 import { ItemEditor } from '@/components/admin/ItemEditor';
 import { recipeFor, listStock } from '@/server/inventory';
 import { RecipeEditor } from '@/components/admin/RecipeEditor';
+import { C_ADMIN_TOP, C_DSP_HEAD, C_IE_HINT, C_IE_PANEL } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Edit dish' };
@@ -20,7 +21,7 @@ export default async function EditItem({ params }: { params: Promise<{ id: strin
   const [recipe, stock] = item && canInv ? await Promise.all([recipeFor(item.id), listStock()]) : [[], []];
   return (
     <>
-      <div className="admin-top">
+      <div className={`${C_ADMIN_TOP} admin-top`}>
         <div>
           <h1>{item ? item.name : 'Add a dish'}</h1>
           <p className="muted" style={{ margin: 0 }}>
@@ -36,9 +37,9 @@ export default async function EditItem({ params }: { params: Promise<{ id: strin
         <ItemEditor categories={categories.map((c) => ({ id: c.id, name: c.name }))} item={item ? JSON.parse(JSON.stringify(item)) : null} />
       )}
       {item && canInv && (
-        <section className="panel ie-panel" style={{ marginTop: 24 }}>
-          <div className="dsp-head"><h2>Recipe (for stock deduction)</h2></div>
-          <p className="hint ie-hint">Ingredients used for one portion. Only used when automatic stock deduction is switched on in Settings.</p>
+        <section className={`panel ${C_IE_PANEL} ie-panel`} style={{ marginTop: 24 }}>
+          <div className={C_DSP_HEAD}><h2>Recipe (for stock deduction)</h2></div>
+          <p className={`hint ${C_IE_HINT}`}>Ingredients used for one portion. Only used when automatic stock deduction is switched on in Settings.</p>
           <RecipeEditor
             menuItemId={item.id}
             variants={item.variants.map((v) => ({ id: v.id, name: v.name }))}

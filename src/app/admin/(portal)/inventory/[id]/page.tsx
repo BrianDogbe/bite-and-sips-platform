@@ -7,6 +7,7 @@ import { sql } from '@/server/db';
 import { formatLocalDateTime } from '@/lib/time';
 import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import { movementAction } from '../actions';
+import { C_ADMIN_TOP, C_TWO_COL } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Stock item' };
@@ -19,14 +20,14 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
   const [moves, r, suppliers] = await Promise.all([movementsFor(item.id), getSettings('restaurant'), sql<{ id: number; name: string }[]>`select id, name from suppliers order by name`]);
   return (
     <>
-      <div className="admin-top">
+      <div className={`${C_ADMIN_TOP} admin-top`}>
         <div>
           <p className="muted" style={{ margin: 0 }}><Link href="/admin/inventory">Inventory</Link></p>
           <h1>{item.name}</h1>
           <p className="muted" style={{ margin: 0 }}>Recorded: {Number(item.quantity)} {item.unit}. Reorder at {Number(item.reorderLevel)}.</p>
         </div>
       </div>
-      <div className="two-col">
+      <div className={C_TWO_COL}>
         <section className="panel">
           <h2 style={{ fontSize: '1.15rem' }}>Movement history</h2>
           {moves.length === 0 ? <p className="muted">No movements yet.</p> : (

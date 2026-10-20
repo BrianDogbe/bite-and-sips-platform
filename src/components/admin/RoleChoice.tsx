@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { C_CHECK_CARD } from '@/components/ui';
 
 /** One role per person: once a role is ticked the others are unavailable until it is unticked. */
 export function RoleChoice({ options, selected = [] }: { options: { value: string; label: string; locked?: boolean }[]; selected?: string[] }) {
@@ -15,12 +16,12 @@ export function RoleChoice({ options, selected = [] }: { options: { value: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <div className="staff-checks" ref={box}>
+    <div className="grid [grid-template-columns:repeat(auto-fit,_minmax(170px,_1fr))] [gap:10px]" ref={box}>
       {options.map((o) => {
         const on = sel.includes(o.value);
         const blocked = o.locked || (sel.length > 0 && !on);
         return (
-          <label key={o.value} className="check check-card small" aria-disabled={blocked}>
+          <label key={o.value} className={`check ${C_CHECK_CARD} small`} aria-disabled={blocked}>
             <input
               type="checkbox"
               name="roles"

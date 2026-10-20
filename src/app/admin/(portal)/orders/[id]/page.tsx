@@ -15,6 +15,7 @@ import { labelOrder, labelPayment, labelKitchen, labelFulfillment, orderTone, pa
 import { directionsUrl } from '@/components/shop/MapEmbed';
 import * as A from './actions';
 import { PRICE, CART_LINE, MODS, TOTALS, TOTAL_LINE, TOTAL_GRAND } from '@/components/ui';
+import { C_ADMIN_TOP, C_EVENT_LIST, C_TWO_COL } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Order' };
@@ -42,7 +43,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <div className="admin-top">
+      <div className={`${C_ADMIN_TOP} admin-top`}>
         <div>
           <p className="muted" style={{ margin: 0 }}>
             <Link href="/admin/orders">Orders</Link>
@@ -76,7 +77,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
-      <div className="two-col">
+      <div className={C_TWO_COL}>
         <div className="stack" style={{ ['--stack' as string]: '18px' }}>
           <section className="panel">
             <h2>Items</h2>
@@ -111,7 +112,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
           <section className="panel">
             <h2>History</h2>
-            <ul className="event-list">
+            <ul className={C_EVENT_LIST}>
               {d.events.map((e) => (
                 <li key={e.id}>
                   <span className="muted small tnum">{formatLocalTime(e.createdAt, tz)}</span>
@@ -161,7 +162,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               {refunds.length > 0 && (
                 <>
                   <h3 style={{ marginTop: 16 }}>Refunds</h3>
-                  <ul className="event-list">
+                  <ul className={C_EVENT_LIST}>
                     {refunds.map((r) => (
                       <li key={r.id}>
                         <span className="tnum">{formatGHS(r.amountPesewas)}</span>
@@ -218,7 +219,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             {d.assignments.length > 0 && (
               <>
                 <h3 style={{ marginTop: 14 }}>Rider assignments</h3>
-                <ul className="event-list">
+                <ul className={C_EVENT_LIST}>
                   {d.assignments.map((a) => (
                     <li key={a.id}>
                       <span className="small muted">{formatLocalTime(a.assignedAt, tz)}</span>
@@ -231,7 +232,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             {bookings.length > 0 && (
               <>
                 <h3 style={{ marginTop: 14 }}>Partner bookings</h3>
-                <ul className="event-list">
+                <ul className={C_EVENT_LIST}>
                   {bookings.map((b) => (
                     <li key={b.id}>
                       <span className="small muted">{formatLocalTime(b.createdAt, tz)}</span>

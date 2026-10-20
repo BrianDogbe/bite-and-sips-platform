@@ -14,6 +14,7 @@ import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import { ActionButton } from '@/components/ActionButton';
 import { invalid } from '@/server/errors';
 import type { ActionResult } from '@/lib/action-result';
+import { C_ADMIN_TOP, C_CASES_TABLE, C_DSP_COUNT, C_DSP_EMPTY, C_DSP_HEAD, C_EMPTY_BOX, C_EVENT_LIST, C_FORM_ALIGNED, C_KPI, C_SET_GROUP, C_SET_LABEL, C_SET_STATUS, C_TWO_COL, C_ZONE_GROUPS } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Finance' };
@@ -47,10 +48,10 @@ async function reconcileAction(attemptId: string, _p: ActionResult | null, fd: F
 
 function Row({ label, value, def, strong, neg }: { label: string; value: string; def?: string; strong?: boolean; neg?: boolean }) {
   return (
-    <tr className={strong ? 'fin-strong' : undefined} title={def}>
+    <tr className={strong ? '[.fin-table_tr&_td]:[background:var(--ivory-2)]' : undefined} title={def}>
       <td>
         {strong ? <strong>{label}</strong> : label}
-        {def && <div className="small muted fin-def">{def}</div>}
+        {def && <div className="small muted hidden [margin-top:4px] [max-width:62ch] [.fin-defs-toggle:checked_~_.fin-group_&]:block">{def}</div>}
       </td>
       <td className="num" style={{ fontWeight: strong ? 700 : undefined }}>
         {neg && /^GH/.test(value) ? '−' : ''}
@@ -62,10 +63,10 @@ function Row({ label, value, def, strong, neg }: { label: string; value: string;
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="fin-group">
-      <div className="set-label">{title}</div>
+    <div className="[margin-bottom:18px] fin-group">
+      <div className={C_SET_LABEL}>{title}</div>
       <div className="table-wrap">
-        <table className="data fin-table">
+        <table className="data [&_td]:[padding:11px_6px] fin-table">
           <tbody>{children}</tbody>
         </table>
       </div>
@@ -103,7 +104,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   const failedPay = payments.filter((a) => a.status === 'failed');
   return (
     <>
-      <div className="admin-top">
+      <div className={`${C_ADMIN_TOP} admin-top`}>
         <div>
           <h1>Finance</h1>
           <p className="muted" style={{ margin: 0 }}>{range}</p>
@@ -115,52 +116,52 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
       </div>
       <PeriodPicker {...p} />
       <p className="alert info small">This is an operational summary, not an accounting system. Settlement amounts from the payment provider may differ from payments received; reconcile them below. Test orders are excluded.</p>
-      <div className="kpis ov-kpis fin-kpis">
-        <div className="kpi">
+      <div className="grid [grid-template-columns:repeat(auto-fit,_minmax(170px,_1fr))] [gap:12px] [grid-template-columns:repeat(4,_minmax(0,_1fr))] [gap:16px] max-[1100px]:[grid-template-columns:repeat(2,_minmax(0,_1fr))] ov-kpis [margin-bottom:28px]">
+        <div className={C_KPI}>
           <div className="v">{formatGHS(s.paidSales)}</div>
           <div className="l">Paid sales ({s.paidOrders} orders)</div>
         </div>
-        <div className="kpi">
+        <div className={C_KPI}>
           <div className="v">{formatGHS(s.netPaidSales)}</div>
           <div className="l">Net paid sales</div>
         </div>
-        <div className="kpi">
+        <div className={C_KPI}>
           <div className="v">{formatGHS(s.contributionEstimate)}</div>
           <div className="l">Estimated contribution</div>
         </div>
-        <div className="kpi">
+        <div className={C_KPI}>
           <div className="v">{s.aov != null ? formatGHS(s.aov) : 'n/a'}</div>
           <div className="l">Average paid order</div>
         </div>
       </div>
-      <section className="panel fin-flow">
-        <div className="fin-flow-head">
+      <section className="panel [padding:clamp(20px,_2.4vw,_30px)] [margin-bottom:24px]">
+        <div className="flex items-baseline justify-between [gap:12px] flex-wrap [margin-bottom:16px] [&_h2]:m-0 [&_h2]:[font-size:1.15rem]">
           <h2>Where the money goes</h2>
           <span className="muted small">Share of net paid sales ({formatGHS(net)})</span>
         </div>
         {net <= 0 && costTotal <= 0 ? (
-          <p className="empty-box">No paid sales in this period yet.</p>
+          <p className={C_EMPTY_BOX}>No paid sales in this period yet.</p>
         ) : (
           <>
-            <div className="fin-bar" role="img" aria-label="Costs and remaining contribution as a share of net paid sales">
-              {parts.map((x) => x.v > 0 && <span key={x.key} className={`fin-seg ${x.cls}`} style={{ width: pct(x.v) }} />)}
-              {left > 0 && <span className="fin-seg left" style={{ width: pct(left) }} />}
+            <div className="flex [height:22px] rounded-full overflow-hidden [background:var(--ivory-2)] [border:1px_solid_var(--line)]" role="img" aria-label="Costs and remaining contribution as a share of net paid sales">
+              {parts.map((x) => x.v > 0 && <span key={x.key} className={`[height:100%] [&.c1]:[background:var(--caramel-text)] [&.c2]:[background:var(--espresso-2)] [&.c3]:[background:#b98a5e] [&.c4]:[background:#8a7b70] [&.left]:[background:var(--sage-dark)] ${x.cls}`} style={{ width: pct(x.v) }} />)}
+              {left > 0 && <span className="[height:100%] [&.c1]:[background:var(--caramel-text)] [&.c2]:[background:var(--espresso-2)] [&.c3]:[background:#b98a5e] [&.c4]:[background:#8a7b70] [&.left]:[background:var(--sage-dark)] left" style={{ width: pct(left) }} />}
             </div>
-            <ul className="fin-legend">
+            <ul className="list-none [margin:18px_0_0] p-0 grid [grid-template-columns:repeat(auto-fit,_minmax(210px,_1fr))] [gap:12px_24px] [&_li]:grid [&_li]:[grid-template-columns:auto_1fr] [&_li]:[column-gap:10px] [&_li]:items-center [&_li_strong]:[grid-column:2] [&_li_strong]:[font-size:1.05rem]">
               {parts.map((x) => (
-                <li key={x.key}><i className={`fin-dot ${x.cls}`} /><span>{x.label}</span><strong className="tnum">{formatGHS(x.v)}</strong></li>
+                <li key={x.key}><i className={`[&.c1]:[background:var(--caramel-text)] [&.c2]:[background:var(--espresso-2)] [&.c3]:[background:#b98a5e] [&.c4]:[background:#8a7b70] [&.left]:[background:var(--sage-dark)] [width:12px] [height:12px] rounded-[50%] [grid-row:span_2] ${x.cls}`} /><span>{x.label}</span><strong className="tnum">{formatGHS(x.v)}</strong></li>
               ))}
-              <li><i className="fin-dot left" /><span>Left over (estimate)</span><strong className="tnum">{formatGHS(left)}</strong></li>
+              <li><i className="[&.c1]:[background:var(--caramel-text)] [&.c2]:[background:var(--espresso-2)] [&.c3]:[background:#b98a5e] [&.c4]:[background:#8a7b70] [&.left]:[background:var(--sage-dark)] [width:12px] [height:12px] rounded-[50%] [grid-row:span_2] left" /><span>Left over (estimate)</span><strong className="tnum">{formatGHS(left)}</strong></li>
             </ul>
           </>
         )}
       </section>
-      <div className="two-col fin-layout">
-        <section className="panel fin-summary">
+      <div className={`${C_TWO_COL} [gap:24px] [align-items:start] [margin-bottom:28px]`}>
+        <section className="panel [padding:clamp(20px,_2.4vw,_30px)] [&_h2]:[font-size:1.15rem] [&_h2]:[margin-bottom:16px]">
           <input type="checkbox" id="fin-defs" className="fin-defs-toggle sr-only" />
-          <div className="fin-summary-head">
+          <div className="flex items-center justify-between [gap:12px] [margin-bottom:16px] [&_h2]:m-0 fin-summary-head">
             <h2>Summary</h2>
-            <label htmlFor="fin-defs" className="btn sm ghost fin-defs-btn">Explain each line</label>
+            <label htmlFor="fin-defs" className="btn sm ghost [.fin-defs-toggle:focus-visible_~_.fin-summary-head_&]:[background:var(--ivory-2)] [.fin-defs-toggle:focus-visible_~_.fin-summary-head_&]:[border-color:var(--line-strong)] [.fin-defs-toggle:checked_~_.fin-summary-head_&]:[background:var(--ivory-2)] [.fin-defs-toggle:checked_~_.fin-summary-head_&]:[border-color:var(--line-strong)]">Explain each line</label>
           </div>
           <Group title="Sales">
             <Row label="Gross order value" value={formatGHS(s.grossOrderValue)} def={D.grossOrderValue} />
@@ -179,26 +180,26 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
           <Group title="Result">
             <Row label="Estimated contribution" value={formatGHS(s.contributionEstimate)} def={D.contributionEstimate} strong />
           </Group>
-          <p className="set-status small">
+          <p className={`${C_SET_STATUS} small`}>
             Orders placed: {s.placedOrders}. Cancelled: {s.cancelledOrders}. Average paid order: {s.aov != null ? formatGHS(s.aov) : 'n/a'}.
           </p>
           {s.unreconciledPayments > 0 && <p className="alert warn small">{s.unreconciledPayments} successful payment(s) ({formatGHS(s.unreconciledAmount)}) are not yet reconciled against provider settlements.</p>}
         </section>
-        <aside className="fin-side">
+        <aside className="[&_.panel]:[padding:clamp(20px,_2.4vw,_30px)] [&_h2]:[font-size:1.15rem] [&_h2]:[margin-bottom:16px] grid [gap:24px]">
           {user.permissions.has('finance.manage') && (
           <section className="panel">
             <h2>Record an expense</h2>
-            <ActionForm action={expenseAction} className="zone-groups" resetOnSuccess>
-              <div className="set-group">
-                <div className="set-label">When and how much</div>
-                <div className="form-aligned two">
+            <ActionForm action={expenseAction} className={`${C_ZONE_GROUPS} zone-groups`} resetOnSuccess>
+              <div className={`${C_SET_GROUP} set-group`}>
+                <div className={C_SET_LABEL}>When and how much</div>
+                <div className={`${C_FORM_ALIGNED} two`}>
                   <div className="field"><label htmlFor="e-d">Date</label><input id="e-d" name="date" type="date" className="input" required defaultValue={p.today} max={p.today} /></div>
                   <div className="field"><label htmlFor="e-a">Amount (GH₵)</label><input id="e-a" name="amount" className="input" inputMode="decimal" required /></div>
                 </div>
               </div>
-              <div className="set-group">
-                <div className="set-label">What for</div>
-                <div className="form-aligned two">
+              <div className={`${C_SET_GROUP} set-group`}>
+                <div className={C_SET_LABEL}>What for</div>
+                <div className={`${C_FORM_ALIGNED} two`}>
                   <div className="field"><label htmlFor="e-c">Category</label><input id="e-c" name="category" className="input" required list="exp-cats" /><datalist id="exp-cats"><option>Gas / fuel</option><option>Packaging</option><option>Utilities</option><option>Rent</option><option>Wages</option><option>Marketing</option><option>Repairs</option></datalist></div>
                   <div className="field"><label htmlFor="e-n">Description (optional)</label><input id="e-n" name="description" className="input" /></div>
                 </div>
@@ -210,9 +211,9 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
           <section className="panel">
             <h2>Expenses this period</h2>
             {expenses.length === 0 ? (
-              <p className="dsp-empty">No expenses recorded.</p>
+              <p className={C_DSP_EMPTY}>No expenses recorded.</p>
             ) : (
-              <ul className="event-list fin-expenses">
+              <ul className={`${C_EVENT_LIST} [&_li]:[padding:10px_0] [&_li]:flex [&_li]:items-center [&_li]:justify-between [&_li]:[gap:12px] [&_li_>_span:nth-child(2)]:flex-1 [&_li_>_span:nth-child(2)]:[min-width:0]`}>
                 {expenses.map((e) => <li key={e.id}><span className="small">{formatLocalDate(e.incurredOn, 'UTC')}</span><span>{e.category}: {formatGHS(e.amountPesewas)} {e.description && <span className="muted">({e.description})</span>}</span>{user.permissions.has('finance.manage') && <ActionButton className="btn sm ghost" action={removeExpenseAction.bind(null, e.id)} confirm={`Remove this expense (${e.category}, ${formatGHS(e.amountPesewas)})? This changes the finance totals.`}>Remove</ActionButton>}</li>)}
               </ul>
             )}
@@ -220,18 +221,18 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
         </aside>
       </div>
       {user.permissions.has('payments.view') && (
-        <section className="panel fin-payments">
-          <div className="dsp-head">
-            <h2>Payments in this period <span className="dsp-count">{payments.length}</span></h2>
+        <section className="panel [padding:clamp(20px,_2.4vw,_30px)] fin-payments">
+          <div className={C_DSP_HEAD}>
+            <h2>Payments in this period <span className={C_DSP_COUNT}>{payments.length}</span></h2>
           </div>
-          <div className="fin-paystats">
+          <div className="grid [grid-template-columns:repeat(3,_minmax(0,_1fr))] [gap:16px] [margin:4px_0_20px] [&_>_div]:grid [&_>_div]:[gap:2px] [&_>_div]:[padding:14px_18px] [&_>_div]:[border:1px_solid_var(--line)] [&_>_div]:[border-radius:var(--r-md)] [&_>_div]:[background:var(--ivory-2)] [&_strong]:[font-size:1.4rem] max-[700px]:[grid-template-columns:1fr]">
             <div><span className="muted small">Received</span><strong className="tnum">{formatGHS(okPay.reduce((a, x) => a + x.amountPesewas, 0))}</strong><span className="small muted">{okPay.length} payment(s)</span></div>
             <div><span className="muted small">Awaiting payment</span><strong className="tnum">{pendingPay.length}</strong><span className="small muted">{formatGHS(pendingPay.reduce((a, x) => a + x.amountPesewas, 0))}</span></div>
             <div><span className="muted small">Failed</span><strong className="tnum">{failedPay.length}</strong><span className="small muted">{formatGHS(failedPay.reduce((a, x) => a + x.amountPesewas, 0))}</span></div>
           </div>
-          {payments.length === 0 ? <p className="empty-box">No payments in this period.</p> : (
+          {payments.length === 0 ? <p className={C_EMPTY_BOX}>No payments in this period.</p> : (
             <div className="table-wrap">
-              <table className="data cases-table">
+              <table className={`data ${C_CASES_TABLE}`}>
                 <thead><tr><th>Payment</th><th>Order</th><th>Status</th><th className="num">Amount</th><th className="num">Fees</th><th>Reconciliation</th></tr></thead>
                 <tbody>
                   {payments.map((a) => (

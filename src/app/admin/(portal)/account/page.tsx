@@ -3,6 +3,7 @@ import { changeOwnPassword } from '@/server/staff';
 import { runAction, str } from '@/server/action';
 import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import type { ActionResult } from '@/lib/action-result';
+import { C_ADMIN_TOP } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Your account' };
@@ -18,7 +19,7 @@ export default async function AccountPage() {
   const user = await requirePagePerm(['dashboard.view', 'menu.manage', 'dispatch.manage', 'orders.view'], '/admin/login');
   return (
     <>
-      <div className="admin-top"><h1>Your account</h1></div>
+      <div className={`${C_ADMIN_TOP} admin-top`}><h1>Your account</h1></div>
       <section className="panel" style={{ maxWidth: 480 }}>
         <p>{user.fullName} ({user.email ?? user.phone})</p>
         <ActionForm action={changePw} className="stack" resetOnSuccess>

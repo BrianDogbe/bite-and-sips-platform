@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { parseCedisToPesewas, pesewasToCedisString } from '@/lib/money';
 import { saveItemAction } from '@/app/admin/(portal)/menu/actions';
 import type { MenuItem } from '@/server/menu';
+import { C_CHECK_CARD, C_DSP_EMPTY, C_DSP_HEAD, C_FORM_ALIGNED, C_IE_HINT, C_IE_PANEL, C_IE_ROW, C_IE_ROWS, C_MENU_LAYOUT, C_SET_GROUP, C_SET_LABEL, C_TWO_COL, C_ZONE_GROUPS } from '@/components/ui';
 
 type Money = string; // cedis as typed
 interface V {
@@ -140,14 +141,14 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
   const upMod = (gi: number, mi: number, patch: Partial<M>) => setGroups((gs) => gs.map((x, j) => (j === gi ? { ...x, modifiers: x.modifiers.map((y, k) => (k === mi ? { ...y, ...patch } : y)) } : x)));
 
   return (
-    <div className="two-col menu-layout ie-layout">
-      <div className="ie-main">
-        <section className="panel ie-panel">
-          <div className="dsp-head"><h2>Details</h2></div>
-          <div className="zone-groups">
-            <div className="set-group">
-              <div className="set-label">Dish</div>
-              <div className="form-aligned two">
+    <div className={`${C_TWO_COL} ${C_MENU_LAYOUT} [gap:24px] [align-items:start]`}>
+      <div className="grid [gap:24px] [min-width:0]">
+        <section className={`panel ${C_IE_PANEL} ie-panel`}>
+          <div className={C_DSP_HEAD}><h2>Details</h2></div>
+          <div className={`${C_ZONE_GROUPS} zone-groups`}>
+            <div className={`${C_SET_GROUP} set-group`}>
+              <div className={C_SET_LABEL}>Dish</div>
+              <div className={`${C_FORM_ALIGNED} two`}>
                 <div className="field">
                   <label htmlFor="i-name">Name</label>
                   <input id="i-name" className="input" value={s.name} onChange={(e) => set('name', e.target.value)} maxLength={80} />
@@ -168,9 +169,9 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
                 <textarea id="i-desc" className="textarea" value={s.description} onChange={(e) => set('description', e.target.value)} maxLength={600} />
               </div>
             </div>
-            <div className="set-group">
-              <div className="set-label">Price and preparation</div>
-              <div className="form-aligned ie-three">
+            <div className={`${C_SET_GROUP} set-group`}>
+              <div className={C_SET_LABEL}>Price and preparation</div>
+              <div className={`${C_FORM_ALIGNED} [grid-template-columns:repeat(3,_minmax(0,_1fr))] [max-width:none] max-[900px]:[grid-template-columns:1fr]`}>
                 {variants.length === 0 && (
                   <div className="field">
                     <label htmlFor="i-price">Price (GH₵)</label>
@@ -188,14 +189,14 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
                 </div>
               </div>
             </div>
-            <div className="set-group">
-              <div className="set-label">Visibility</div>
-              <div className="set-two">
-                <label className="check check-card">
+            <div className={`${C_SET_GROUP} set-group`}>
+              <div className={C_SET_LABEL}>Visibility</div>
+              <div className="grid [grid-template-columns:repeat(2,_minmax(0,_1fr))] [gap:16px] max-[600px]:[grid-template-columns:1fr]">
+                <label className={`check ${C_CHECK_CARD}`}>
                   <input type="checkbox" checked={s.isAvailable} onChange={(e) => set('isAvailable', e.target.checked)} />
                   <span>Available to order<span className="hint" style={{ display: 'block' }}>Untick to mark it sold out.</span></span>
                 </label>
-                <label className="check check-card">
+                <label className={`check ${C_CHECK_CARD}`}>
                   <input type="checkbox" checked={s.isFeatured} onChange={(e) => set('isFeatured', e.target.checked)} />
                   <span>Feature on the homepage<span className="hint" style={{ display: 'block' }}>Shown in the featured dishes.</span></span>
                 </label>
@@ -204,19 +205,19 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
           </div>
         </section>
 
-        <section className="panel ie-panel">
-          <div className="dsp-head">
+        <section className={`panel ${C_IE_PANEL} ie-panel`}>
+          <div className={C_DSP_HEAD}>
             <h2>Sizes</h2>
             <button type="button" className="btn sm" onClick={() => setVariants((v) => [...v, { name: '', price: '', isDefault: v.length === 0, isAvailable: true }])}>
               Add size
             </button>
           </div>
-          <p className="hint ie-hint">Optional. With sizes, the customer must pick one and its price replaces the single price.</p>
+          <p className={`hint ${C_IE_HINT}`}>Optional. With sizes, the customer must pick one and its price replaces the single price.</p>
           {variants.length === 0 ? (
-            <p className="dsp-empty">No sizes. This dish uses a single price.</p>
+            <p className={C_DSP_EMPTY}>No sizes. This dish uses a single price.</p>
           ) : (
-            <div className="ie-rows">
-              <div className="ie-row ie-size ie-head" aria-hidden="true">
+            <div className={C_IE_ROWS}>
+              <div className={`${C_IE_ROW} [grid-template-columns:minmax(0,_1.6fr)_minmax(0,_1fr)_80px_90px_auto] max-[900px]:[grid-template-columns:1fr_1fr] [font-size:0.74rem] font-extrabold [letter-spacing:0.1em] uppercase [color:var(--muted)] max-[900px]:hidden`} aria-hidden="true">
                 <span>Size name</span>
                 <span>Price (GH₵)</span>
                 <span>Default</span>
@@ -224,13 +225,13 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
                 <span />
               </div>
               {variants.map((v, i) => (
-                <div key={i} className="ie-row ie-size">
+                <div key={i} className={`${C_IE_ROW} [grid-template-columns:minmax(0,_1.6fr)_minmax(0,_1fr)_80px_90px_auto] max-[900px]:[grid-template-columns:1fr_1fr]`}>
                   <input className="input" placeholder="e.g. Large" value={v.name} onChange={(e) => upVar(i, { name: e.target.value })} aria-label="Size name" />
                   <input className="input" placeholder="0.00" inputMode="decimal" value={v.price} onChange={(e) => upVar(i, { price: e.target.value })} aria-label="Size price" />
-                  <label className="check small ie-center">
+                  <label className="check small justify-center">
                     <input type="radio" name="defvar" checked={v.isDefault} onChange={() => setVariants((vs) => vs.map((x, j) => ({ ...x, isDefault: j === i })))} aria-label="Default size" />
                   </label>
-                  <label className="check small ie-center">
+                  <label className="check small justify-center">
                     <input type="checkbox" checked={v.isAvailable} onChange={(e) => upVar(i, { isAvailable: e.target.checked })} aria-label="Size available" />
                   </label>
                   <button type="button" className="btn sm ghost" onClick={() => setVariants((vs) => vs.filter((_, j) => j !== i))}>
@@ -242,19 +243,19 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
           )}
         </section>
 
-        <section className="panel ie-panel">
-          <div className="dsp-head">
+        <section className={`panel ${C_IE_PANEL} ie-panel`}>
+          <div className={C_DSP_HEAD}>
             <h2>Options and extras</h2>
             <button type="button" className="btn sm" onClick={() => setGroups((g) => [...g, { name: '', minSelect: 0, maxSelect: 1, modifiers: [{ name: '', price: '0', isAvailable: true }] }])}>
               Add option group
             </button>
           </div>
-          <p className="hint ie-hint">E.g. “Choose your protein” (min 1, max 1) or “Extras” (min 0, max 3).</p>
-          {groups.length === 0 && <p className="dsp-empty">No option groups yet.</p>}
-          <div className="ie-groups">
+          <p className={`hint ${C_IE_HINT}`}>E.g. “Choose your protein” (min 1, max 1) or “Extras” (min 0, max 3).</p>
+          {groups.length === 0 && <p className={C_DSP_EMPTY}>No option groups yet.</p>}
+          <div className="grid [gap:18px]">
             {groups.map((g, gi) => (
-              <div key={gi} className="ie-group">
-                <div className="ie-group-head">
+              <div key={gi} className="grid [gap:16px] [padding:20px] [border:1px_solid_var(--line)] [border-radius:14px] [background:var(--ivory)] [&_>_.btn]:[justify-self:start]">
+                <div className="grid [grid-template-columns:minmax(0,_1fr)_90px_90px_auto] [gap:14px] [align-items:end] [&_.field]:[gap:8px] max-[900px]:[grid-template-columns:1fr_1fr]">
                   <div className="field">
                     <label htmlFor={`g-n-${gi}`}>Group name</label>
                     <input id={`g-n-${gi}`} className="input" placeholder="e.g. Extras" value={g.name} onChange={(e) => upGroup(gi, { name: e.target.value })} />
@@ -271,9 +272,9 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
                     Remove group
                   </button>
                 </div>
-                <div className="ie-rows">
+                <div className={C_IE_ROWS}>
                   {g.modifiers.map((m, mi) => (
-                    <div key={mi} className="ie-row ie-opt">
+                    <div key={mi} className={`${C_IE_ROW} [grid-template-columns:minmax(0,_1.6fr)_minmax(0,_1fr)_auto_auto] max-[900px]:[grid-template-columns:1fr_1fr]`}>
                       <input className="input" placeholder="Option name" value={m.name} onChange={(e) => upMod(gi, mi, { name: e.target.value })} aria-label="Option name" />
                       <input className="input" placeholder="+GH₵" inputMode="decimal" value={m.price} onChange={(e) => upMod(gi, mi, { price: e.target.value })} aria-label="Extra price" />
                       <label className="check small">
@@ -294,22 +295,22 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
         </section>
       </div>
 
-      <aside className="ie-side">
-        <section className="panel ie-panel">
-          <div className="dsp-head"><h2>Photo</h2></div>
-          <div className="zone-groups">
+      <aside className="grid [gap:24px] [min-width:0]">
+        <section className={`panel ${C_IE_PANEL} ie-panel`}>
+          <div className={C_DSP_HEAD}><h2>Photo</h2></div>
+          <div className={`${C_ZONE_GROUPS} zone-groups`}>
             {s.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={s.imageUrl} alt={s.imageAlt || ''} className="ie-photo" />
+              <img src={s.imageUrl} alt={s.imageAlt || ''} className="[width:100%] [aspect-ratio:4_/_3] object-cover [border-radius:12px]" />
             ) : (
-              <p className="ie-photo-empty">No photo. The menu shows a simple placeholder instead.</p>
+              <p className="m-0 [padding:36px_20px] text-center [color:var(--muted)] [border:1.5px_dashed_var(--line-strong)] [border-radius:12px] [background:var(--ivory)] [font-size:0.92rem]">No photo. The menu shows a simple placeholder instead.</p>
             )}
-            <label className={`ie-upload${uploading ? ' busy' : ''}`}>
+            <label className={`flex items-center [gap:16px] [padding:16px_18px] [border:1.5px_dashed_var(--line-strong)] [border-radius:12px] [background:#fff] cursor-pointer hover:[border-color:var(--espresso)] hover:[background:var(--ivory)] focus-within:[border-color:var(--espresso)] focus-within:[background:var(--ivory)] [&.busy]:[opacity:0.7] [&.busy]:[cursor:progress]${uploading ? ' busy' : ''}`}>
               <input type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} aria-label="Upload photo" disabled={uploading} />
-              <span className="ie-upload-ico" aria-hidden="true">
+              <span className="flex-none [width:44px] [height:44px] [border-radius:12px] grid place-items-center [background:var(--sage-tint)] [color:var(--sage-dark)]" aria-hidden="true">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m14-6-5-5-5 5m5-5v12" /></svg>
               </span>
-              <span className="ie-upload-text">
+              <span className="grid [gap:2px]">
                 <strong>{uploading ? 'Uploading…' : s.imageUrl ? 'Replace photo' : 'Upload a photo'}</strong>
                 <span className="small muted">JPG, PNG or WebP</span>
               </span>
@@ -326,26 +327,26 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
           </div>
         </section>
 
-        <section className="panel ie-panel">
-          <div className="dsp-head"><h2>Dietary and allergens</h2></div>
-          <div className="zone-groups">
-            <div className="set-group">
-              <div className="set-label">Dietary</div>
-              <div className="ie-checks">
+        <section className={`panel ${C_IE_PANEL} ie-panel`}>
+          <div className={C_DSP_HEAD}><h2>Dietary and allergens</h2></div>
+          <div className={`${C_ZONE_GROUPS} zone-groups`}>
+            <div className={`${C_SET_GROUP} set-group`}>
+              <div className={C_SET_LABEL}>Dietary</div>
+              <div className="grid [grid-template-columns:repeat(2,_minmax(0,_1fr))] [gap:10px] ie-checks">
                 {TAGS.map(([k, l]) => (
-                  <label key={k} className="check check-card small">
+                  <label key={k} className={`check ${C_CHECK_CARD} small`}>
                     <input type="checkbox" checked={s.dietaryTags.includes(k)} onChange={(e) => set('dietaryTags', e.target.checked ? [...s.dietaryTags, k] : s.dietaryTags.filter((t) => t !== k))} /> {l}
                   </label>
                 ))}
               </div>
             </div>
-            <div className="set-group">
-              <div className="set-label">Allergens</div>
+            <div className={`${C_SET_GROUP} set-group`}>
+              <div className={C_SET_LABEL}>Allergens</div>
               <div className="field">
                 <label htmlFor="i-all">Allergens (comma separated)</label>
                 <input id="i-all" className="input" value={s.allergens} onChange={(e) => set('allergens', e.target.value)} placeholder="e.g. peanuts, fish, egg" />
               </div>
-              <label className="check check-card small">
+              <label className={`check ${C_CHECK_CARD} small`}>
                 <input type="checkbox" checked={s.allergensVerified} onChange={(e) => set('allergensVerified', e.target.checked)} />
                 <span>I’ve checked this allergen list with the kitchen<span className="hint" style={{ display: 'block' }}>Only verified lists are shown to customers.</span></span>
               </label>
@@ -353,14 +354,14 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
           </div>
         </section>
 
-        <section className="panel ie-panel">
-          <div className="dsp-head"><h2>Serving times</h2><span className="muted small">Optional</span></div>
-          <div className="zone-groups">
-            <div className="set-group">
-              <div className="set-label">Days</div>
-              <div className="ie-days">
+        <section className={`panel ${C_IE_PANEL} ie-panel`}>
+          <div className={C_DSP_HEAD}><h2>Serving times</h2><span className="muted small">Optional</span></div>
+          <div className={`${C_ZONE_GROUPS} zone-groups`}>
+            <div className={`${C_SET_GROUP} set-group`}>
+              <div className={C_SET_LABEL}>Days</div>
+              <div className="grid [grid-template-columns:repeat(7,_minmax(0,_1fr))] [gap:8px]">
                 {DAYS.map((d, i) => (
-                  <label key={d} className="ie-day">
+                  <label key={d} className="relative cursor-pointer [&_input]:absolute [&_input]:[opacity:0] [&_input]:[inset:0] [&_input]:cursor-pointer [&_span]:grid [&_span]:place-items-center [&_span]:[height:42px] [&_span]:[border:1px_solid_var(--line)] [&_span]:[border-radius:10px] [&_span]:[background:#fff] [&_span]:[font-size:0.85rem] [&_span]:font-bold [&_input:checked_+_span]:[background:var(--espresso)] [&_input:checked_+_span]:[border-color:var(--espresso)] [&_input:checked_+_span]:[color:#fff] [&_input:focus-visible_+_span]:[outline:2px_solid_var(--espresso)] [&]:[&_input:focus-visible_+_span]:[outline-offset:2px]">
                     <input type="checkbox" checked={s.availableDays.includes(i)} onChange={(e) => set('availableDays', e.target.checked ? [...s.availableDays, i] : s.availableDays.filter((x) => x !== i))} />
                     <span>{d}</span>
                   </label>
@@ -368,9 +369,9 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
               </div>
               <p className="hint" style={{ margin: 0 }}>Leave all days unticked to serve every day.</p>
             </div>
-            <div className="set-group">
-              <div className="set-label">Hours</div>
-              <div className="form-aligned two">
+            <div className={`${C_SET_GROUP} set-group`}>
+              <div className={C_SET_LABEL}>Hours</div>
+              <div className={`${C_FORM_ALIGNED} two`}>
                 <div className="field">
                   <label htmlFor="i-from">From</label>
                   <input id="i-from" type="time" className="input" value={s.availableFrom} onChange={(e) => set('availableFrom', e.target.value)} />
@@ -384,7 +385,7 @@ export function ItemEditor({ categories, item }: { categories: { id: number; nam
           </div>
         </section>
 
-        <section className="panel ie-panel ie-save">
+        <section className={`panel ${C_IE_PANEL} ie-panel sticky [bottom:12px] grid [gap:12px]`}>
           {msg && (
             <p className={`alert ${msg.ok ? 'ok' : 'error'}`} role={msg.ok ? 'status' : 'alert'}>
               {msg.text}

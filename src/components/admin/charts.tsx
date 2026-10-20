@@ -25,15 +25,15 @@ export function LineChart({ labels, series, ariaLabel }: { labels: string[]; ser
   const y = (v: number) => T + (1 - v / niceMax) * (H - T - B);
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => t * niceMax);
   return (
-    <svg className="dash-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel} preserveAspectRatio="xMidYMid meet">
+    <svg className="[width:100%] [height:auto] block" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel} preserveAspectRatio="xMidYMid meet">
       {ticks.map((t) => (
         <g key={t}>
           <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="var(--line)" strokeDasharray={t === 0 ? undefined : '3 4'} />
-          <text x={L - 8} y={y(t) + 4} textAnchor="end" className="dash-axis">{compact(t)}</text>
+          <text x={L - 8} y={y(t) + 4} textAnchor="end" className="[font-size:11px] [fill:var(--muted)]">{compact(t)}</text>
         </g>
       ))}
       {labels.map((l, i) => (
-        <text key={`${l}-${i}`} x={x(i)} y={H - 8} textAnchor="middle" className="dash-axis">{l}</text>
+        <text key={`${l}-${i}`} x={x(i)} y={H - 8} textAnchor="middle" className="[font-size:11px] [fill:var(--muted)]">{l}</text>
       ))}
       {series.map((s) => (
         <g key={s.name}>
@@ -59,7 +59,7 @@ export function Sparkline({ values, color = 'var(--sage-dark)', ariaLabel }: { v
   const y = (v: number) => 6 + (1 - v / max) * (H - 12);
   const line = values.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
   return (
-    <svg className="dash-spark" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel} preserveAspectRatio="none">
+    <svg className="[width:100%] [height:56px] block" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel} preserveAspectRatio="none">
       <path d={`${line} L${W} ${H} L0 ${H} Z`} fill={color} opacity={0.12} />
       <path d={line} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>

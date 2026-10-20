@@ -147,11 +147,11 @@ export default async function Home() {
         </div>
       </section>
 
-      <div className="group flex select-none overflow-hidden bg-espresso py-3.5 text-ivory motion-reduce:overflow-x-auto" aria-label="Good food. Good mood. Fresh ingredients, great taste, delivery and pickup.">
+      <div className="group flex select-none overflow-hidden bg-[var(--caramel)] py-3.5 text-ivory motion-reduce:overflow-x-auto" aria-label="Good food. Good mood. Fresh ingredients, great taste, delivery and pickup.">
         {[0, 1].map((n) => (
           <div className="flex min-w-full shrink-0 animate-marquee justify-around group-hover:[animation-play-state:paused] motion-reduce:animate-none" key={n} aria-hidden={n === 1 ? 'true' : undefined}>
             {['Good food', 'Good mood', 'Fresh ingredients', 'Great taste', 'Pickup & delivery', 'Shawarma', 'Sandwiches', 'Salads', 'Combo', 'Drinks'].map((t) => (
-              <span key={t} className="inline-flex items-center whitespace-nowrap px-5 font-[family-name:var(--font-display)] text-[length:clamp(1.1rem,2vw,1.5rem)] after:ml-10 after:size-2 after:rounded-full after:bg-[var(--caramel)] after:content-['']">
+              <span key={t} className="inline-flex items-center whitespace-nowrap px-5 font-[family-name:var(--font-display)] text-[length:clamp(1.1rem,2vw,1.5rem)] after:ml-10 after:size-2 after:rounded-full after:bg-espresso after:content-['']">
                 {t}
               </span>
             ))}
@@ -181,7 +181,7 @@ export default async function Home() {
         {groups.length ? (
           <div className="flex flex-wrap justify-center gap-6 min-[1001px]:flex-nowrap min-[1001px]:justify-stretch min-[1001px]:gap-5">
             {groups.map((g) => (
-              <Link key={g.id} href={`/menu#cat-${g.id}`} className="group flex flex-[0_0_calc((100%-48px)/3)] flex-col overflow-hidden rounded-[18px] border border-[rgba(53,37,31,0.6)] bg-espresso text-ivory no-underline max-[1000px]:basis-[calc((100%-24px)/2)] max-[640px]:basis-full min-[1001px]:min-w-0 min-[1001px]:flex-1">
+              <Link key={g.id} href={`/menu#cat-${g.id}`} className="group flex flex-[0_0_calc((100%-48px)/3)] flex-col overflow-hidden rounded-[18px] border border-[rgba(53,37,31,0.25)] bg-[var(--caramel)] text-espresso no-underline max-[1000px]:basis-[calc((100%-24px)/2)] max-[640px]:basis-full min-[1001px]:min-w-0 min-[1001px]:flex-1">
                 <div className="relative aspect-[3/2] bg-ivory-2">
                   {g.image ? (
                     <Image src={g.image} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1100px) 33vw, 230px" className="object-cover" />
@@ -192,17 +192,17 @@ export default async function Home() {
                   )}
                 </div>
                 <div className="flex flex-1 flex-col gap-1.5 px-[18px] pb-3.5 pt-4">
-                  <div className="flex justify-between gap-3 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-[#d9cfc0]">
+                  <div className="flex justify-between gap-3 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-[rgba(53,37,31,0.75)]">
                     <span>Category</span>
                     <span>
                       {g.count} {g.count === 1 ? 'item' : 'items'}
                     </span>
                   </div>
-                  <span className="font-[family-name:var(--font-display)] text-[1.4rem] leading-[1.15] text-white">{g.name}</span>
-                  {g.blurb && <span className="line-clamp-2 min-h-[2.8em] text-[0.92rem] leading-[1.4] text-[#f0e8db]">{g.blurb}</span>}
-                  <span className="mt-auto flex items-center justify-between pt-0.5 text-[1.05rem] font-extrabold text-[var(--caramel)]">
+                  <span className="font-[family-name:var(--font-display)] text-[1.4rem] leading-[1.15] text-espresso">{g.name}</span>
+                  {g.blurb && <span className="line-clamp-2 min-h-[2.8em] text-[0.92rem] leading-[1.4] text-espresso">{g.blurb}</span>}
+                  <span className="mt-auto flex items-center justify-between pt-0.5 text-[1.05rem] font-extrabold text-espresso">
                     <span>View</span>
-                    <span aria-hidden="true" className="text-white transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none">→</span>
+                    <span aria-hidden="true" className="text-espresso transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none">→</span>
                   </span>
                 </div>
               </Link>

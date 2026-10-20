@@ -1,6 +1,7 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { saveRecipeAction } from '@/app/admin/(portal)/menu/actions';
+import { C_DSP_EMPTY, C_IE_ROW, C_IE_ROWS } from '@/components/ui';
 
 interface Line {
   stockItemId: number;
@@ -12,11 +13,11 @@ export function RecipeEditor({ menuItemId, variants, stock, initial }: { menuIte
   const [lines, setLines] = useState<Line[]>(initial);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  if (!stock.length) return <p className="dsp-empty">Add stock items in Inventory first.</p>;
+  if (!stock.length) return <p className={C_DSP_EMPTY}>Add stock items in Inventory first.</p>;
   return (
-    <div className="ie-rows">
+    <div className={C_IE_ROWS}>
       {lines.map((l, i) => (
-        <div key={i} className="ie-row ie-recipe">
+        <div key={i} className={`${C_IE_ROW} [grid-template-columns:minmax(0,_1.6fr)_130px_minmax(0,_1fr)_auto] max-[900px]:[grid-template-columns:1fr_1fr]`}>
           <select className="select" value={l.stockItemId} onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, stockItemId: Number(e.target.value) } : x)))} aria-label="Ingredient">
             {stock.map((s) => (
               <option key={s.id} value={s.id}>

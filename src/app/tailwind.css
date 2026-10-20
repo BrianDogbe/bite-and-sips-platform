@@ -2,13 +2,12 @@
  * Tailwind CSS v4, added next to the existing stylesheet so pages can be migrated one at a time.
  *
  *  - Preflight (Tailwind's global reset) is deliberately NOT imported: it would restyle every existing page.
- *  - The existing stylesheet is imported into a lower "legacy" layer so Tailwind utilities win over old classes
- *    when both are on the same element. Unlayered CSS would otherwise always beat utilities.
+ *  - Everything is layered (theme, base, components, overrides, utilities) so utilities always win.
  */
-@layer theme, base, components, legacy, utilities;
+@layer theme, base, components, overrides, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
 @import './base.css' layer(base);
-@import './globals.css' layer(legacy);
+@import './overrides.css' layer(overrides);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
 /* Brand tokens as Tailwind colours, reading the existing CSS variables (bg-espresso, text-sage, border-line …). */
@@ -239,5 +238,66 @@
     @apply inline-block size-[18px] rounded-full border-[2.5px] border-current;
     border-right-color: transparent;
     animation: spin 0.8s linear infinite;
+  }
+  .panel {
+    overflow-wrap: anywhere;
+    @apply rounded-[var(--r-lg)] border border-line bg-[var(--surface)] p-[clamp(16px,2.5vw,24px)] max-[380px]:px-3.5;
+  }
+  .panel.tight {
+    @apply p-3.5;
+  }
+  .panel h2,
+  .panel h3 {
+    @apply mt-0;
+  }
+  .table-wrap {
+    @apply overflow-x-auto rounded-[var(--r-md)] border border-line bg-[var(--surface)];
+  }
+  table.data {
+    @apply w-full border-collapse text-[0.93rem];
+  }
+  table.data th {
+    @apply whitespace-nowrap border-b border-line bg-[#f8f3e8] px-3 py-2.5 text-left text-[0.82rem] font-bold text-muted;
+  }
+  table.data td {
+    @apply border-b border-line px-3 py-2.5 align-top;
+  }
+  table.data tr:last-child td {
+    @apply border-b-0;
+  }
+  table.data tr.attention td:first-child {
+    box-shadow: inset 4px 0 0 var(--danger);
+  }
+  table.data .num {
+    @apply text-right tabular-nums;
+  }
+  dl.kv {
+    @apply m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5;
+  }
+  dl.kv dt {
+    @apply text-muted;
+  }
+  dl.kv dd {
+    @apply m-0 font-bold;
+  }
+  .section {
+    @apply py-[clamp(72px,10vw,144px)];
+  }
+  .brand-mark {
+    @apply size-[34px] flex-none;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgba(37, 99, 235, 0);
   }
 }

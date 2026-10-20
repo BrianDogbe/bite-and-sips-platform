@@ -43,8 +43,8 @@ export function HoursSummary({ hours }: { hours: { weekday: number; opensAt: str
   return (
     <>
       {summarizeHours(hours).map((g) => (
-        <span key={g.days} className="hours-line">
-          <strong>{g.days}</strong> <span className="tnum">{g.time}</span>
+        <span key={g.days}>
+          <strong className="font-extrabold text-white">{g.days}</strong> <span className="tnum">{g.time}</span>
         </span>
       ))}
     </>

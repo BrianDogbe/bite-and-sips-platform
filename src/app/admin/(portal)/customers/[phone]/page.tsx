@@ -7,6 +7,7 @@ import { formatLocalDateTime } from '@/lib/time';
 import { Badge } from '@/components/Badge';
 import { labelOrder, orderTone, labelPayment, paymentTone } from '@/lib/status-ui';
 import { sql } from '@/server/db';
+import { C_ADMIN_TOP, C_TWO_COL } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Customer' };
@@ -17,8 +18,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ phone
   const [orders, r, cases] = await Promise.all([customerHistory(user, phone), getSettings('restaurant'), sql<{ id: string; caseNumber: string; category: string; status: string; createdAt: Date }[]>`select id, case_number, category, status, created_at from support_cases where contact_phone = ${phone} order by created_at desc`]);
   return (
     <>
-      <div className="admin-top"><div><p className="muted" style={{ margin: 0 }}><Link href="/admin/customers">Customers</Link></p><h1>{phone}</h1></div></div>
-      <div className="two-col">
+      <div className={`${C_ADMIN_TOP} admin-top`}><div><p className="muted" style={{ margin: 0 }}><Link href="/admin/customers">Customers</Link></p><h1>{phone}</h1></div></div>
+      <div className={C_TWO_COL}>
         <section className="panel">
           <h2 style={{ fontSize: '1.15rem' }}>Orders</h2>
           <div className="table-wrap">

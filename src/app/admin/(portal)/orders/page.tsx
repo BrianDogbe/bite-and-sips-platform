@@ -9,6 +9,7 @@ import { ORDER_STATUSES, PAYMENT_STATUSES } from '@/lib/states';
 import { Badge } from '@/components/Badge';
 import { labelOrder, labelPayment, labelKitchen, labelFulfillment, orderTone, paymentTone, kitchenTone, fulfillmentTone } from '@/lib/status-ui';
 import { LiveRefresh } from '@/components/admin/LiveRefresh';
+import { C_ADMIN_TOP } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Orders' };
@@ -43,7 +44,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   const today = localDateKey(new Date(), tz);
   return (
     <>
-      <div className="admin-top">
+      <div className={`${C_ADMIN_TOP} admin-top`}>
         <h1>Orders</h1>
         <div className="row">
           {user.permissions.has('reports.view') && (
@@ -54,12 +55,12 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
           <LiveRefresh topics={['admin']} />
         </div>
       </div>
-      <form className="filters-box panel" method="get">
+      <form className="grid [gap:18px] [margin-bottom:24px] [padding:clamp(18px,_2.2vw,_28px)] [&_.input]:[width:100%] [&_.select]:[width:100%] panel" method="get">
         <div className="field">
           <label htmlFor="q">Search</label>
           <input id="q" name="q" className="input" defaultValue={sp.q} placeholder="Order number, name or phone" />
         </div>
-        <div className="filters-grid">
+        <div className="grid [grid-template-columns:repeat(5,_minmax(0,_1fr))] [gap:16px] max-[1100px]:[grid-template-columns:repeat(3,_minmax(0,_1fr))] max-[640px]:[grid-template-columns:repeat(2,_minmax(0,_1fr))]">
           <div className="field">
             <label htmlFor="status">Order status</label>
             <select id="status" name="status" className="select" defaultValue={sp.status ?? ''}>
@@ -99,8 +100,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
             <input id="to" type="date" name="to" className="input" defaultValue={sp.to} max={today} />
           </div>
         </div>
-        <div className="filters-foot">
-          <div className="filters-checks">
+        <div className="flex flex-wrap items-center justify-between [gap:14px_24px] [padding-top:16px] [border-top:1px_solid_var(--line,_var(--border))]">
+          <div className="flex flex-wrap [gap:10px_28px]">
             <label className="check">
               <input type="checkbox" name="attention" value="1" defaultChecked={sp.attention === '1'} /> Needs attention
             </label>
@@ -123,7 +124,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="data orders-table">
+          <table className="data [&_td:first-child]:whitespace-nowrap [&_td:first-child]:[min-width:190px] [&_td_.small]:[margin-top:3px] [min-width:1360px] [&_th]:[padding:22px_22px] [&_th]:[vertical-align:middle] [&]:[&_th]:[padding-top:16px] [&]:[&_th]:[padding-bottom:16px] [&_td]:[padding:22px_22px] [&_td]:[vertical-align:middle] [&_td:nth-child(2)]:[color:var(--ink)] [&_td:nth-child(3)]:[color:var(--muted)] [&_tbody_tr]:[border-top:1px_solid_var(--line)] [&_tbody_tr:hover]:[background:var(--ivory)] [table.data&_th]:[vertical-align:middle] [table.data&_th]:[padding:18px_26px] [table.data&_td]:[vertical-align:middle] [table.data&_td]:[padding:28px_26px] [table.data&]:[min-width:1560px] orders-table">
             <thead>
               <tr>
                 <th>Order</th>
@@ -144,7 +145,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
               {rows.map((o) => (
                 <tr key={o.id} className={o.needsAttention ? 'attention' : undefined}>
                   <td>
-                    <span className="ord-id">
+                    <span className="[.orders-table_&]:inline-flex [.orders-table_&]:items-center [.orders-table_&]:[gap:10px] [.orders-table_&]:whitespace-nowrap">
                       <Link href={`/admin/orders/${o.id}`} style={{ fontWeight: 700 }} className="tnum">
                         {o.orderNumber}
                       </Link>

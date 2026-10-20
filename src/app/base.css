@@ -1,4 +1,63 @@
 /* Element-level defaults (box model, body, headings, links, focus ring, screen-reader helpers). Loaded in the lowest layer so components and page styles can override them. */
+:root {
+  /* Official brand palette */
+  --espresso: #35251f;
+  --ivory: #f7f2e9;
+  --sage: #87947a;
+  --caramel: #c58b59;
+  --white: #ffffff;
+  --charcoal: #292a27;
+  --border: #e7e0d6;
+
+  /* Derived shades (kept to a minimum) */
+  --espresso-2: #4b362d; /* hover / raised espresso */
+  --ivory-2: #efe8da; /* selected surfaces, subtle bands */
+  --sage-dark: #5d6a52; /* sage as text on ivory/white (AA contrast) */
+  --sage-tint: #e9ede3;
+  --caramel-text: #8f5a2c; /* caramel as text on ivory/white (AA contrast) */
+  --caramel-tint: #f4e6d6;
+
+  /* Semantic aliases used across the stylesheet */
+  --leaf: var(--espresso); /* historical name: brand dark */
+  --leaf-2: var(--espresso-2);
+  --leaf-3: var(--ivory-2);
+  --paper: var(--ivory);
+  --surface: var(--white);
+  --ink: var(--charcoal);
+  --muted: #6a6259;
+  --line: var(--border);
+  --line-strong: #d4c9b9;
+  --accent: var(--caramel);
+  --accent-2: #ead3bb;
+  --berry: var(--caramel);
+
+  /* Functional status colours (same meaning in every interface) */
+  --status-new: #2563eb;
+  --status-prep: #b7791f;
+  --status-ready: #287d50;
+  --status-urgent: #c43d3d;
+  --ok: #287d50;
+  --ok-bg: #e5f2ea;
+  --warn: #8a5a12;
+  --warn-bg: #fbf0da;
+  --danger: #c43d3d;
+  --danger-bg: #fbe9e9;
+  --info: #2563eb;
+  --info-bg: #e8effd;
+
+  --font-display: var(--font-dm-serif), Georgia, 'Times New Roman', serif;
+  --font-body: var(--font-manrope), system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --shadow-1: 0 1px 2px rgba(53, 37, 31, 0.06);
+  --shadow-2: 0 8px 24px rgba(53, 37, 31, 0.12);
+  --focus: 0 0 0 2px var(--white), 0 0 0 4px var(--espresso);
+  --gutter: clamp(16px, 4vw, 40px);
+  --maxw: 1180px;
+}
+
 *,
 *::before,
 *::after {
@@ -6,8 +65,11 @@
 }
 html {
   -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 body {
+  overflow-x: clip;
   margin: 0;
   background: var(--paper);
   color: var(--ink);
@@ -19,6 +81,16 @@ body {
 img {
   max-width: 100%;
   display: block;
+}
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+img,
+video {
+  height: auto;
 }
 a {
   color: inherit;

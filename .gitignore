@@ -11,3 +11,4 @@ storage/
 next-env.d.ts
 *.tsbuildinfo
 .smoke/
+.impeccable

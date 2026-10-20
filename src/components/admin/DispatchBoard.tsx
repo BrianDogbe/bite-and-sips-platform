@@ -10,6 +10,7 @@ import { MapEmbed, directionsUrl } from '../shop/MapEmbed';
 import type { DispatchRow } from '@/server/orders/queries';
 import type { RiderStatus } from '@/server/fulfillment/inhouse';
 import { OPTGROUP, OPT_LEGEND } from '../ui';
+import { C_DSP_COUNT, C_DSP_EMPTY, C_DSP_HEAD, C_LIVE_PILL } from '@/components/ui';
 
 interface Board {
   serverTime: string;
@@ -71,10 +72,10 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
   const late = (o: DispatchRow) => ['unassigned', 'assigned', 'accepted', 'at_restaurant', 'requested'].includes(o.fulfillmentStatus) && new Date(o.promisedAt).getTime() < now;
 
   return (
-    <div className="dsp-layout">
-      <div className="dsp-main">
-        <div className="dsp-toolbar">
-          <span className={`live-pill ${status === 'live' && !stale ? '' : 'stale'}`} role="status">
+    <div className="grid [grid-template-columns:minmax(0,_1.3fr)_minmax(340px,_1fr)] [gap:28px] [align-items:start] max-[1100px]:[grid-template-columns:1fr] max-[860px]:[grid-template-columns:minmax(0,_1fr)]! [&_>_*]:[min-width:0]">
+      <div className="grid [gap:20px]">
+        <div className="flex items-center justify-between [gap:12px] [padding:14px_18px] [border:1px_solid_var(--line,_var(--border))] [border-radius:14px] [background:var(--surface,_#fff)]">
+          <span className={`${C_LIVE_PILL} ${status === 'live' && !stale ? '' : 'stale'}`} role="status">
             <span className="dot" /> {status === 'live' && !stale ? 'Live' : `Last updated ${lastSuccess ? ago(new Date(lastSuccess), now) : 'never'}`}
           </span>
           <button className="btn sm" onClick={() => void refresh()}>
@@ -83,12 +84,12 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
         </div>
         {error && <p className="alert warn">{error}</p>}
         {groups.map((g) => (
-          <section key={g.title} className="panel dsp-group">
-            <h2 className="dsp-head">
-              {g.title} <span className="dsp-count">{g.list.length}</span>
+          <section key={g.title} className="panel [padding:clamp(18px,_2vw,_26px)] [&_.table-wrap_td]:[padding:14px_16px] [&_.table-wrap_th]:[padding:14px_16px]">
+            <h2 className={C_DSP_HEAD}>
+              {g.title} <span className={C_DSP_COUNT}>{g.list.length}</span>
             </h2>
             {g.list.length === 0 ? (
-              <p className="dsp-empty">None.</p>
+              <p className={C_DSP_EMPTY}>None.</p>
             ) : (
               <div className="table-wrap">
                 <table className="data">
@@ -120,12 +121,12 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
             )}
           </section>
         ))}
-        <section className="panel dsp-group">
-          <h2 className="dsp-head">
-            Riders <span className="dsp-count">{data?.riders.length ?? 0}</span>
+        <section className="panel [padding:clamp(18px,_2vw,_26px)] [&_.table-wrap_td]:[padding:14px_16px] [&_.table-wrap_th]:[padding:14px_16px]">
+          <h2 className={C_DSP_HEAD}>
+            Riders <span className={C_DSP_COUNT}>{data?.riders.length ?? 0}</span>
           </h2>
           {!data?.riders.length ? (
-            <p className="dsp-empty">
+            <p className={C_DSP_EMPTY}>
               No riders yet. Add staff with the Rider role in <Link href="/admin/staff">Staff</Link>.
             </p>
           ) : (
@@ -161,9 +162,9 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
         </section>
       </div>
 
-      <aside className="dsp-side">
+      <aside className="sticky [top:16px] max-[1100px]:static">
         {!sel ? (
-          <div className="panel empty dsp-select">
+          <div className="panel empty [min-height:260px] grid [place-content:center] [border:1.5px_dashed_var(--line-strong,_var(--border))] bg-transparent [padding:32px]">
             <h3>Select a delivery</h3>
             <p>Choose an order on the left to assign a rider, book a partner or update its status.</p>
           </div>

@@ -8,12 +8,13 @@ import { formatLocalTime, localDateKey } from '@/lib/time';
 import { postJson } from '@/lib/use-live';
 import { matchAreas } from '@/lib/tema-areas';
 import { Icon } from '../Icon';
-import { OPTGROUP, OPT_LEGEND, OPT, QTY, QTY_BTN, QTY_OUT, PRICE, CART_LINE, MODS, TOTALS, TOTAL_LINE, TOTAL_GRAND, TWO_COL, SIDEBAR } from '../ui';
+import { OPTGROUP, OPT_LEGEND, OPT, QTY, QTY_BTN, QTY_OUT, PRICE, CART_LINE, MODS, TOTALS, TOTAL_LINE, TOTAL_GRAND, TWO_COL, SIDEBAR, DAY_CHIP } from '../ui';
 
 const SEG =
   'min-h-10 cursor-pointer rounded-full border-0 bg-transparent px-[18px] font-[family-name:var(--font-body)] text-[0.98rem] font-bold leading-normal text-espresso aria-pressed:bg-espresso aria-pressed:text-white';
 import { ItemSheet } from './ItemSheet';
 import type { ClientMenuItem } from './types';
+import { C_DSP_COUNT, C_DSP_HEAD } from '@/components/ui';
 
 interface Zone {
   id: number;
@@ -65,6 +66,31 @@ interface Slot {
 }
 type Phase = 'idle' | 'submitting' | 'redirecting';
 const KEY_STORE = 'bs_checkout_key';
+// Contact and delivery details remembered on this device after a successful order, so a returning guest doesn't retype them.
+const DETAILS_STORE = 'bs_guest_details';
+interface SavedDetails {
+  name?: string;
+  phone?: string;
+  email?: string;
+  addr?: { addressLine?: string; landmark?: string; instructions?: string };
+}
+function readSavedDetails(): SavedDetails | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(DETAILS_STORE) || 'null');
+    return v && typeof v === 'object' ? (v as SavedDetails) : null;
+  } catch {
+    return null;
+  }
+}
+// Where to send focus for each validation error, in the order the fields appear on the page.
+const ERROR_TARGETS: [string, string][] = [
+  ['addressLine', '#addressLine'],
+  ['location', '#use-location'],
+  ['slot', '#slot-times button:not(:disabled)'],
+  ['name', '#name'],
+  ['phone', '#phone'],
+  ['email', '#email'],
+];
 
 export function Checkout({
   ordering,
@@ -101,7 +127,7 @@ export function Checkout({
   const [promoInput, setPromoInput] = useState('');
   const [promo, setPromo] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
-  const [terms, setTerms] = useState(false);
+  const [remembered, setRemembered] = useState(false);
   const [quote, setQuote] = useState<QuoteResp | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
@@ -110,6 +136,48 @@ export function Checkout({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<CartLine | null>(null);
   const idemKey = useRef<string>('');
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const [submitInView, setSubmitInView] = useState(false);
+
+  // Prefill from the signed-in account first, then from details remembered on this device.
+  useEffect(() => {
+    const saved = user ? null : readSavedDetails();
+    setContact((c) => ({
+      name: c.name || user?.name || saved?.name || '',
+      phone: c.phone || user?.phone || saved?.phone || '',
+      email: c.email || user?.email || saved?.email || '',
+    }));
+    if (saved?.addr) {
+      setAddr((a) => ({
+        addressLine: a.addressLine || saved.addr?.addressLine || '',
+        landmark: a.landmark || saved.addr?.landmark || '',
+        instructions: a.instructions || saved.addr?.instructions || '',
+      }));
+    }
+    setRemembered(!!saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function forgetDetails() {
+    try {
+      localStorage.removeItem(DETAILS_STORE);
+    } catch {
+      /* ignore */
+    }
+    setContact({ name: user?.name ?? '', phone: user?.phone ?? '', email: user?.email ?? '' });
+    setAddr({ addressLine: '', landmark: '', instructions: '' });
+    setRemembered(false);
+  }
+
+  // The phone-only sticky Pay bar steps aside while the real Pay button is on screen.
+  const hasLines = cart.lines.length > 0;
+  useEffect(() => {
+    const el = submitRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([entry]) => setSubmitInView(entry.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [cart.ready, hasLines]);
 
   useEffect(() => {
     try {
@@ -245,20 +313,32 @@ export function Checkout({
     );
   }
 
-  function validate(): boolean {
+  function validate(): Record<string, string> {
     const e: Record<string, string> = {};
     if (contact.name.trim().length < 2) e.name = 'Enter your name';
     if (!/^(?:\+?233|0)\d{9}$/.test(contact.phone.replace(/[\s-]/g, ''))) e.phone = 'Enter a valid Ghana phone number, e.g. 024 123 4567';
-    if (pay === 'online' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contact.email.trim())) e.email = 'Needed for your payment receipt';
+    if (pay === 'online' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contact.email.trim())) e.email = 'Add your email. Mobile Money and card payments need it to send your receipt.';
     if (contact.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contact.email.trim())) e.email = 'Enter a valid email';
     if (type === 'delivery') {
       if (addr.addressLine.trim().length < 3) e.addressLine = 'Enter your street, house number or building';
       if (!loc && !zoneId) e.location = 'Share your location or choose your area';
     }
     if (!asap && !slot) e.slot = 'Choose a time';
-    if (!terms) e.terms = 'Please accept to continue';
     setFieldErrors(e);
-    return Object.keys(e).length === 0;
+    return e;
+  }
+
+  // Take the customer straight to the first field that needs fixing (fields can be a long way above the Pay button on a phone).
+  function focusFirstError(e: Record<string, string>) {
+    const target = ERROR_TARGETS.find(([k]) => e[k]);
+    if (!target) return;
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(target[1]);
+      if (!el) return;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+      el.focus({ preventScroll: true });
+    });
   }
 
   const blocking =
@@ -269,12 +349,47 @@ export function Checkout({
     (pay === 'online' && !ordering.onlinePayments) ||
     (asap && slots !== null && !earliest);
 
+  // Why the Pay button can't be pressed yet, said next to the button rather than left as a silent grey state.
+  const blockReason = !ordering.acceptingOrders
+    ? ordering.pauseMessage || 'We’re not taking orders right now.'
+    : quote && quote.problems.length > 0
+      ? 'One of your dishes needs attention. See your order above.'
+      : quote?.fulfillmentError
+        ? 'We can’t deliver there yet. See the delivery section above.'
+        : quote?.minOrderError
+          ? quote.minOrderError
+          : (pay === 'cash' && !cashAllowed) || (pay === 'online' && !ordering.onlinePayments)
+            ? 'Choose a payment method that’s available.'
+            : asap && slots !== null && !earliest
+              ? 'There are no times available right now. Try scheduling for later.'
+              : quoting
+                ? 'Checking prices…'
+                : null;
+  const submitDisabled = phase !== 'idle' || !!blocking || quoting;
+  const total = quote ? formatGHS(quote.totalPesewas) : '';
+  const submitLabel =
+    phase === 'submitting' ? (
+      <>
+        <span className="spinner" /> Placing your order…
+      </>
+    ) : phase === 'redirecting' ? (
+      <>
+        <span className="spinner" /> {pay === 'online' ? 'Opening secure payment…' : 'Opening your tracking page…'}
+      </>
+    ) : pay === 'online' ? (
+      `Pay ${total}`
+    ) : (
+      'Place order'
+    );
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (phase !== 'idle') return; // state machine: no duplicate submissions
     setSubmitError(null);
-    if (!validate()) {
+    const errors = validate();
+    if (Object.keys(errors).length) {
       setSubmitError('Please check the highlighted fields.');
+      focusFirstError(errors);
       return;
     }
     if (blocking) {
@@ -307,6 +422,19 @@ export function Checkout({
       });
       // An order now exists: clear the cart and start a fresh idempotency key for any future order.
       cart.clear();
+      // Signed-in customers already get their details from the account; only guests are remembered on the device.
+      if (!user) try {
+        const prev = readSavedDetails();
+        const details: SavedDetails = {
+          name: contact.name.trim(),
+          phone: contact.phone.trim(),
+          email: contact.email.trim(),
+          addr: type === 'delivery' ? addr : prev?.addr,
+        };
+        localStorage.setItem(DETAILS_STORE, JSON.stringify(details));
+      } catch {
+        /* ignore */
+      }
       try {
         sessionStorage.removeItem(KEY_STORE);
       } catch {
@@ -347,14 +475,14 @@ export function Checkout({
   const editingItem = editing ? menuItems.find((m) => m.id === editing.menuItemId) ?? null : null;
 
   return (
-    <form onSubmit={submit} noValidate className={TWO_COL}>
+    <form onSubmit={submit} noValidate className={`${TWO_COL} max-[900px]:pb-32`}>
       <div className="stack" style={{ ['--stack' as string]: '20px' }}>
         {!ordering.acceptingOrders && <p className="alert warn">{ordering.pauseMessage}</p>}
 
         <section className="panel" aria-labelledby="h-items">
-          <div className="dsp-head">
+          <div className={C_DSP_HEAD}>
             <h2 id="h-items" style={{ margin: 0 }}>
-              Your order <span className="dsp-count">{cart.lines.length}</span>
+              Your order <span className={C_DSP_COUNT}>{cart.lines.length}</span>
             </h2>
             <Link href="/menu" className="btn sm gap-1.5 font-bold no-underline">
               <Icon name="plus" size={16} /> Add more
@@ -438,7 +566,7 @@ export function Checkout({
               <div className="field">
                 <span className="label">Where should we deliver?</span>
                 <div className="row">
-                  <button type="button" className="btn leaf" onClick={useMyLocation}>
+                  <button type="button" id="use-location" className="btn leaf" onClick={useMyLocation}>
                     <Icon name="map" size={18} /> Use my current location
                   </button>
                   {loc && (
@@ -541,13 +669,13 @@ export function Checkout({
                 {slotsByDay.length > 1 && (
                   <div className="row" role="group" aria-label="Day" style={{ marginBottom: 10 }}>
                     {slotsByDay.map(([k, list]) => (
-                      <button key={k} type="button" className="chip" aria-pressed={activeDay === k} onClick={() => setDay(k)}>
+                      <button key={k} type="button" className={DAY_CHIP} aria-pressed={activeDay === k} onClick={() => setDay(k)}>
                         {new Intl.DateTimeFormat('en-GB', { timeZone: timezone, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(list[0].start))}
                       </button>
                     ))}
                   </div>
                 )}
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(92px,1fr))] gap-2" role="group" aria-label="Available times">
+                <div id="slot-times" className="grid grid-cols-[repeat(auto-fill,minmax(92px,1fr))] gap-2" role="group" aria-label="Available times">
                   {(slotsByDay.find(([k]) => k === activeDay)?.[1] ?? []).map((s) => (
                     <button key={s.start} type="button" className="min-h-11 cursor-pointer rounded-[var(--r-sm)] border-[1.5px] border-[var(--line-strong)] bg-[var(--surface)] font-[family-name:var(--font-body)] text-[0.95rem] font-bold leading-normal aria-pressed:border-espresso aria-pressed:bg-espresso aria-pressed:text-white disabled:cursor-not-allowed disabled:line-through disabled:opacity-45" disabled={!s.available} aria-pressed={slot === s.start} onClick={() => setSlot(s.start)} aria-label={`${formatLocalTime(s.start, timezone)}${s.available ? '' : ', full'}`}>
                       {formatLocalTime(s.start, timezone)}
@@ -565,18 +693,18 @@ export function Checkout({
           <div className="grid-2">
             <div className="field">
               <label htmlFor="name">Name</label>
-              <input id="name" className="input" autoComplete="off" placeholder="e.g. Kwame Mensah" value={contact.name} aria-invalid={!!fieldErrors.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} maxLength={80} />
+              <input id="name" className="input" autoComplete="name" placeholder="e.g. Kwame Mensah" value={contact.name} aria-invalid={!!fieldErrors.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} maxLength={80} />
               {fieldErrors.name && <span className="field-error">{fieldErrors.name}</span>}
             </div>
             <div className="field">
               <label htmlFor="phone">Phone</label>
-              <input id="phone" className="input" type="tel" inputMode="tel" autoComplete="off" placeholder="024 123 4567" value={contact.phone} aria-invalid={!!fieldErrors.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} maxLength={16} />
+              <input id="phone" className="input" type="tel" inputMode="tel" autoComplete="tel" placeholder="024 123 4567" value={contact.phone} aria-invalid={!!fieldErrors.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} maxLength={16} />
               {fieldErrors.phone && <span className="field-error">{fieldErrors.phone}</span>}
             </div>
           </div>
           <div className="field" style={{ marginTop: 14 }}>
-            <label htmlFor="email">Email {pay === 'online' ? '' : <span className="hint">(optional)</span>}</label>
-            <input id="email" className="input" type="email" autoComplete="off" placeholder="e.g. kwame@example.com" value={contact.email} aria-invalid={!!fieldErrors.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} maxLength={120} />
+            <label htmlFor="email">Email {pay === 'online' ? <span className="hint">(for your receipt)</span> : <span className="hint">(optional)</span>}</label>
+            <input id="email" className="input" type="email" inputMode="email" autoComplete="email" placeholder="e.g. kwame@example.com" value={contact.email} aria-invalid={!!fieldErrors.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} maxLength={120} />
             {pay === 'online' && <span className="hint">The payment provider sends your receipt here.</span>}
             {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
           </div>
@@ -589,6 +717,16 @@ export function Checkout({
           {!user && (
             <p className="hint" style={{ marginTop: 10 }}>
               No account needed. <Link href="/account/login?next=/checkout">Sign in</Link> to save your order history.
+            </p>
+          )}
+          {!user && (
+            <p className="hint" style={{ marginTop: 6 }}>
+              {remembered ? 'We filled in the details you used last time on this device. ' : 'We’ll remember these details on this device for next time. '}
+              {remembered && (
+                <button type="button" className="linkish" onClick={forgetDetails}>
+                  Not you? Clear them
+                </button>
+              )}
             </p>
           )}
         </section>
@@ -687,39 +825,35 @@ export function Checkout({
           )}
           {quoteError && quote && <p className="field-error">Couldn’t refresh prices: {quoteError}</p>}
 
-          <label className="check" style={{ marginTop: 16 }}>
-            <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} aria-invalid={!!fieldErrors.terms} />
-            <span className="small">
-              I accept the <Link href="/policies" target="_blank">terms, privacy and refund policy</Link>. {ordering.cancellationPolicy}
-            </span>
-          </label>
-          {fieldErrors.terms && <span className="field-error">{fieldErrors.terms}</span>}
-
           {submitError && (
             <p className="alert error" role="alert" style={{ marginTop: 12 }}>
               {submitError}
             </p>
           )}
-          <button type="submit" className="btn primary lg block" style={{ marginTop: 14 }} disabled={phase !== 'idle' || !!blocking || quoting} aria-busy={phase !== 'idle'}>
-            {phase === 'submitting' ? (
-              <>
-                <span className="spinner" /> Placing your order…
-              </>
-            ) : phase === 'redirecting' ? (
-              <>
-                <span className="spinner" /> {pay === 'online' ? 'Opening secure payment…' : 'Opening your tracking page…'}
-              </>
-            ) : pay === 'online' ? (
-              `Pay ${quote ? formatGHS(quote.totalPesewas) : ''}`
-            ) : (
-              'Place order'
-            )}
+          <button ref={submitRef} type="submit" className="btn primary lg block" style={{ marginTop: 14 }} disabled={submitDisabled} aria-busy={phase !== 'idle'} aria-describedby={blockReason ? 'pay-reason' : undefined}>
+            {submitLabel}
           </button>
+          {blockReason && phase === 'idle' && (
+            <p id="pay-reason" className="hint" role="status" style={{ marginTop: 8 }}>
+              {blockReason}
+            </p>
+          )}
+          <p className="small text-muted" style={{ marginTop: 10 }}>
+            By placing this order you accept our <Link href="/policies" target="_blank">terms, privacy and refund policy</Link>. {ordering.cancellationPolicy}
+          </p>
           <p className="hint" style={{ marginTop: 8 }}>
             Your order is only confirmed after {pay === 'online' ? 'the payment provider confirms your payment' : 'we receive it'}. Final prices are checked by our system.
           </p>
         </section>
       </aside>
+      {!submitInView && (
+        <div className="fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-[25] hidden rounded-[var(--r-md)] bg-[var(--surface)] p-2 shadow-[var(--shadow-2)] max-[900px]:block">
+          {blockReason && phase === 'idle' && <p className="hint m-0 mb-2 px-1">{blockReason}</p>}
+          <button type="submit" className="btn primary lg block" disabled={submitDisabled} aria-busy={phase !== 'idle'}>
+            {pay === 'cash' && phase === 'idle' && total ? `Place order, ${total}` : submitLabel}
+          </button>
+        </div>
+      )}
       <ItemSheet
         item={editingItem}
         initial={editing ? { variantId: editing.variantId, modifierIds: editing.modifierIds, quantity: editing.quantity, instructions: editing.instructions } : null}

@@ -10,6 +10,7 @@ import { Icon } from '../Icon';
 import type { TrackingView } from '@/server/orders/queries';
 import { BackLink } from './BackLink';
 import { PRICE, CART_LINE, MODS, TOTALS, TOTAL_LINE, TOTAL_GRAND, TWO_COL, SIDEBAR } from '../ui';
+import { C_LIVE_PILL } from '@/components/ui';
 
 const PK_LABEL = 'text-[0.8rem] uppercase tracking-[0.08em] opacity-75';
 const PK_VALUE = 'text-[length:clamp(1.6rem,6vw,2.2rem)] tracking-[0.06em] max-[380px]:tracking-[0.03em]';
@@ -104,7 +105,7 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             <p style={{ margin: 0 }}>
               Order <strong className="tnum">{o.orderNumber}</strong>
             </p>
-            <span className={`live-pill ${status === 'live' && !stale ? '' : 'stale'}`} role="status">
+            <span className={`${C_LIVE_PILL} ${status === 'live' && !stale ? '' : 'stale'}`} role="status">
               <span className="dot" aria-hidden="true" />
               {status === 'live' && !stale ? 'Live updates' : lastSuccess ? `Updated ${ago(now - lastSuccess)}` : 'Connecting…'}
             </span>

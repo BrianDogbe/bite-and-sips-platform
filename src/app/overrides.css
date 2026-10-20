@@ -1,0 +1,36 @@
+/* Rules that must beat the component classes and element defaults but still lose to utilities. */
+html:has(.checkout-grid),
+body:has(.checkout-grid) {
+  overflow-x: clip;
+  max-width: 100%;
+}
+body:has(.rider-app) {
+  background: var(--ivory-2);
+}
+/* inputs: 16px stops iOS Safari zooming the page on focus */
+@media (max-width: 760px) {
+  .input,
+  .select,
+  .textarea,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+/* comfortable touch targets on touch devices */
+@media (pointer: coarse) {
+  .btn,
+  button.btn,
+  .linkish {
+    min-height: 44px;
+  }
+}
+/* tables scroll inside their wrapper, with a little momentum */
+.table-wrap {
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+.table-wrap table {
+  min-width: 100%;
+}

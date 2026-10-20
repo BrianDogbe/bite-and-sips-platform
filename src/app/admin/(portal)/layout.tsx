@@ -31,7 +31,7 @@ export default async function PortalLayout({ children }: { children: React.React
   const roleLabel = user.roles.filter((r) => r !== 'customer').map((r) => ROLE_LABELS[r]).join(', ');
   const alerts = await adminAlerts(user).catch(() => []);
   return (
-    <div className="staff-body" style={{ minHeight: '100dvh' }}>
+    <div className="[--font-display:var(--font-body)] [background:#f6f2eb] [&_h1]:font-extrabold [&_h1]:[letter-spacing:-0.01em] [&_h2]:font-extrabold [&_h2]:[letter-spacing:-0.01em] [&_h3]:font-extrabold [&_h3]:[letter-spacing:-0.01em] [&_h4]:font-extrabold [&_h4]:[letter-spacing:-0.01em]" style={{ minHeight: '100dvh' }}>
       <TabSignIn portal="admin" loginPath="/admin/login" />
       <AdminShell items={items} userName={user.fullName} roleLabel={roleLabel} alerts={alerts}>
         {children}

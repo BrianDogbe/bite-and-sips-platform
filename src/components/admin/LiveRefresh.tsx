@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { subscribeRealtime } from '@/lib/realtime-client';
+import { C_LIVE_PILL } from '@/components/ui';
 
 /** Re-renders the current server page when relevant data changes (SSE), with a polling fallback. */
 export function LiveRefresh({ topics, pollMs = 30000 }: { topics: string[]; pollMs?: number }) {
@@ -26,7 +27,7 @@ export function LiveRefresh({ topics, pollMs = 30000 }: { topics: string[]; poll
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topics.join(','), pollMs]);
   return (
-    <span className={`live-pill ${live ? '' : 'stale'}`} role="status" title={new Date(at).toLocaleTimeString()}>
+    <span className={`${C_LIVE_PILL} ${live ? '' : 'stale'}`} role="status" title={new Date(at).toLocaleTimeString()}>
       <span className="dot" aria-hidden="true" /> {live ? 'Live' : 'Auto-refresh'}
     </span>
   );
