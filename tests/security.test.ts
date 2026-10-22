@@ -42,8 +42,16 @@ test('login: wrong password generic error, lockout after repeated failures, wron
   assert.ok(await getSessionUser(ok.token));
   await revokeSession(ok.token);
   assert.equal(await getSessionUser(ok.token), null);
-  for (let i = 0; i < 8; i++) await login(u.email!, `bad-${i}-xxxxxx`, { ip: `ip${i}` }).catch(() => {});
-  await assert.rejects(login(u.email!, 'correct horse battery', { ip: '9' }), /locked|Too many/);
+  // Eight wrong guesses from ONE address block that address, not the real owner signing in from elsewhere.
+  for (let i = 0; i < 8; i++) await login(u.email!, `bad-${i}-xxxxxx`, { ip: 'attacker' }).catch(() => {});
+  await assert.rejects(login(u.email!, 'correct horse battery', { ip: 'attacker' }), /Too many failed/);
+  assert.ok(await login(u.email!, 'correct horse battery', { ip: 'owner-phone' }));
+  // Guessing spread over many addresses is still capped per account.
+  for (let i = 0; i < 60; i++) await hitRateLimit(`login:acct:${u.email!.toLowerCase()}`, 60, 3600);
+  await assert.rejects(login(u.email!, 'correct horse battery', { ip: 'another' }), /Too many failed/);
+  // A made-up account gets the same answer as a real one (no account enumeration).
+  for (let i = 0; i < 8; i++) await login('ghost@x.test', `bad-${i}-xxxxxx`, { ip: 'attacker2' }).catch(() => {});
+  await assert.rejects(login('ghost@x.test', 'whatever-whatever', { ip: 'attacker2' }), /Too many failed/);
 });
 
 test('rate limiter blocks after the limit within the window', async () => {
@@ -156,4 +164,48 @@ test('expenses: only the owner can record or remove them, and removal is audited
   const [a] = await sql<{ n: number }[]>`select count(*)::int as n from audit_events where action = 'finance.expense_removed'`;
   assert.equal(a.n, 1);
   await assert.rejects(removeExpense(owner, e.id), /not found/);
+});
+
+test('client IP ignores forwarding headers unless the proxy is trusted', async () => {
+  const { clientIp } = await import('@/server/http');
+  const { resetEnvCache } = await import('@/server/env');
+  const headers = new Headers({ 'x-forwarded-for': '6.6.6.6, 203.0.113.9', 'x-real-ip': '6.6.6.6' });
+  try {
+    process.env.TRUST_PROXY = 'false';
+    resetEnvCache();
+    assert.equal(clientIp(headers), 'local'); // a visitor cannot choose their own bucket
+    process.env.TRUST_PROXY = 'true';
+    process.env.TRUSTED_PROXY_HOPS = '1';
+    resetEnvCache();
+    assert.equal(clientIp(headers), '203.0.113.9'); // the address the trusted proxy saw, not what the visitor wrote
+  } finally {
+    delete process.env.TRUST_PROXY;
+    delete process.env.TRUSTED_PROXY_HOPS;
+    resetEnvCache();
+  }
+});
+
+test('staff sessions expire after 12 hours, customer sessions last longer', async () => {
+  const staff = await makeUser(['kitchen']);
+  const cust = await makeUser(['customer']);
+  const a = await login(staff.email!, 'correct horse battery', { ip: 'st1' });
+  const b = await login(cust.email!, 'correct horse battery', { ip: 'cu1' });
+  const hours = (d: Date) => (d.getTime() - Date.now()) / 3600_000;
+  assert.ok(hours(a.expiresAt) > 11.9 && hours(a.expiresAt) <= 12.01, `staff session was ${hours(a.expiresAt)}h`);
+  assert.ok(hours(b.expiresAt) > 24 * 13, 'customer session keeps the 14-day lifetime');
+});
+
+test('old finished orders stop showing personal details on the tracking link', async () => {
+  const o = await createOrder(orderInput(fx, { paymentMethod: 'cash', notes: 'Gate is blue' }), { user: null, ip: 'tr1' });
+  const fresh = await trackingView(o.trackingToken);
+  assert.equal(fresh.order.customerName, 'Ama Mensah');
+  assert.equal(fresh.order.notes, 'Gate is blue');
+  assert.equal(fresh.order.detailsHidden, false);
+  await sql`update orders set status = 'completed', completed_at = now() - interval '45 days' where id = ${o.orderId}`;
+  const old = await trackingView(o.trackingToken);
+  assert.equal(old.order.detailsHidden, true);
+  assert.equal(old.order.customerName, 'Ama');
+  assert.equal(old.order.notes, null);
+  assert.equal(old.fulfillment.addressLine, null);
+  assert.equal(old.order.orderNumber, o.orderNumber); // the status and receipt are still there
 });

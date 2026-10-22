@@ -34,6 +34,12 @@ export async function itemsFor(orderId: string, db: Db = sql) {
 // Customer tracking (secret token — no login required)
 // ---------------------------------------------------------------------------
 
+/**
+ * A tracking link keeps working for ever (the status and receipt stay available), but once an order has been
+ * finished for this long the personal details on it (address, landmark, notes, surname) are no longer shown.
+ */
+export const TRACKING_PERSONAL_DATA_DAYS = 30;
+
 export async function trackingView(token: string, db: Db = sql) {
   if (!token || token.length < 20 || token.length > 100) throw notFound('Order');
   const [o] = await db<OrderRow[]>`select * from orders where tracking_token = ${token}`;
@@ -58,6 +64,8 @@ export async function trackingView(token: string, db: Db = sql) {
       : null;
   const location = o.fulfillmentType === 'delivery' ? await customerVisibleLocation(o.id, db) : null;
   const showPin = o.fulfillmentType === 'delivery' && f.method === 'in_house' && ['assigned', 'accepted', 'at_restaurant', 'picked_up', 'on_the_way', 'arrived'].includes(f.status);
+  const finished = o.status === 'completed' || o.status === 'cancelled';
+  const detailsHidden = finished && Date.now() - new Date(o.completedAt ?? o.createdAt).getTime() > TRACKING_PERSONAL_DATA_DAYS * 86400_000;
   const canCancel =
     settings.ordering.allowCustomerCancelBeforeKitchen && (o.status === 'pending_payment' || (o.status === 'placed' && ['not_sent', 'new'].includes(o.kitchenStatus)));
 
@@ -70,7 +78,7 @@ export async function trackingView(token: string, db: Db = sql) {
       paymentMethod: o.paymentMethod,
       kitchenStatus: o.kitchenStatus,
       fulfillmentType: o.fulfillmentType,
-      customerName: o.customerName,
+      customerName: detailsHidden ? o.customerName.split(' ')[0] : o.customerName,
       subtotalPesewas: o.subtotalPesewas,
       discountPesewas: o.discountPesewas,
       deliveryFeePesewas: o.deliveryFeePesewas,
@@ -86,13 +94,14 @@ export async function trackingView(token: string, db: Db = sql) {
       completedAt: o.completedAt,
       cancelReason: o.cancelReason,
       isTest: o.isTest,
-      notes: o.customerNotes,
+      notes: detailsHidden ? null : o.customerNotes,
+      detailsHidden,
     },
     fulfillment: {
       status: f.status,
       method: f.method,
-      addressLine: f.addressLine,
-      landmark: f.landmark,
+      addressLine: detailsHidden ? null : f.addressLine,
+      landmark: detailsHidden ? null : f.landmark,
       zoneName: f.zoneName,
       deliveredAt: f.deliveredAt,
       collectedAt: f.collectedAt,

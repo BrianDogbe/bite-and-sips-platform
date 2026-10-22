@@ -29,7 +29,7 @@ Vercel or other serverless platforms also work, with three caveats:
    - Point `biteandsips.com` at the deployment.
    - Optionally add `admin.`, `kitchen.` and `rider.` as aliases and set `ADMIN_HOST`, `KITCHEN_HOST` and `RIDER_HOST`.
 8. **HTTPS is mandatory.** Secure session cookies, browser geolocation (rider and checkout), PWA install and Paystack webhooks all require it.
-9. Set `TRUST_PROXY=true` only if a trusted proxy/CDN sets `X-Forwarded-For`.
+9. Set `TRUST_PROXY=true` when the site is behind a proxy/CDN, and `TRUSTED_PROXY_HOPS` to how many proxies there are (add one if `/api` is forwarded to the separate backend). Without it, all visitors share one rate-limit bucket and the server logs a warning. Check the `login:ip` limits by signing in a few times from two different phones.
 
 ## Monitoring and logs
 The app writes structured JSON logs to stdout/stderr (`src/server/log.ts`). Ship them to your host's log viewer and alert on these messages:

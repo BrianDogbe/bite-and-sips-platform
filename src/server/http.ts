@@ -5,15 +5,39 @@ import { isDomainError } from './errors';
 import { env } from './env';
 import { log } from './log';
 
-/** Client IP (only trusts X-Forwarded-For when TRUST_PROXY=true, i.e. behind a known proxy/CDN). */
+let warnedUntrustedProxy = false;
+
+/**
+ * Client IP, used as the key for rate limits.
+ *
+ * Forwarding headers (X-Forwarded-For, X-Real-IP) are written by the caller, so a visitor can put anything in them.
+ * They are only believed when TRUST_PROXY=true, meaning the site really sits behind proxies that add the address of
+ * whoever connected to them. Each trusted proxy appends the address it saw, so the real client is the entry
+ * TRUSTED_PROXY_HOPS places from the END of the list; anything a visitor wrote sits further to the left and is ignored.
+ *
+ * With TRUST_PROXY=false every request shares one bucket ('local'): fine for development, but in production behind a
+ * proxy it would make visitors share limits, so a warning is logged once to remind you to set TRUST_PROXY=true.
+ */
 export function clientIp(headers: Headers): string | null {
-  if (env().TRUST_PROXY === 'true') {
-    const xf = headers.get('x-forwarded-for');
-    if (xf) return xf.split(',')[0].trim().slice(0, 64);
-    const real = headers.get('x-real-ip');
-    if (real) return real.trim().slice(0, 64);
+  const e = env();
+  if (e.TRUST_PROXY !== 'true') {
+    if (e.NODE_ENV === 'production' && !warnedUntrustedProxy) {
+      warnedUntrustedProxy = true;
+      log.warn('trust_proxy_off_in_production', {
+        note: 'All visitors share one rate-limit bucket. Set TRUST_PROXY=true (and TRUSTED_PROXY_HOPS) when running behind a proxy or CDN.',
+      });
+    }
+    return 'local';
   }
-  return headers.get('x-real-ip')?.slice(0, 64) ?? 'local';
+  const xf = headers.get('x-forwarded-for');
+  if (xf) {
+    const parts = xf.split(',').map((p) => p.trim()).filter(Boolean);
+    const ip = parts[Math.max(0, parts.length - e.TRUSTED_PROXY_HOPS)];
+    if (ip) return ip.slice(0, 64);
+  }
+  const real = headers.get('x-real-ip');
+  if (real) return real.trim().slice(0, 64);
+  return 'local';
 }
 
 /**

@@ -18,6 +18,17 @@ export async function hitRateLimit(key: string, limit: number, windowSeconds: nu
   return { allowed: count <= limit, count };
 }
 
+/** Current count for a key inside its window, without counting a new hit. */
+export async function rateLimitCount(key: string, windowSeconds: number, db: Db = sql): Promise<number> {
+  const rows = await db<{ count: number }[]>`
+    select count from rate_limits where key = ${key} and window_start >= now() - make_interval(secs => ${windowSeconds})`;
+  return rows[0]?.count ?? 0;
+}
+
+export async function clearRateLimit(key: string, db: Db = sql): Promise<void> {
+  await db`delete from rate_limits where key = ${key}`;
+}
+
 export async function enforceRateLimit(key: string, limit: number, windowSeconds: number, db: Db = sql): Promise<void> {
   const r = await hitRateLimit(key, limit, windowSeconds, db);
   if (!r.allowed) throw rateLimited();

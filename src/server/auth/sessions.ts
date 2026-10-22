@@ -2,8 +2,9 @@ import 'server-only';
 import { sql, type Db } from '../db';
 import { newToken, sha256 } from '../ids';
 import { verifyPassword } from './password';
-import { hitRateLimit } from './rate-limit';
+import { hitRateLimit, rateLimitCount, clearRateLimit } from './rate-limit';
 import { DomainError, rateLimited } from '../errors';
+import { log } from '../log';
 import { permissionsFor, type Permission, type Role } from './permissions';
 
 /**
@@ -20,8 +21,17 @@ export const SESSION_COOKIES: Record<Portal, string> = {
 };
 export const SESSION_COOKIE = SESSION_COOKIES.customer;
 export const SESSION_TTL_DAYS = 14;
-const MAX_FAILED = 8;
-const LOCK_MINUTES = 15;
+/** Owners, managers, kitchen staff and riders sign in again after this long, even if the screen stays open. */
+export const STAFF_SESSION_TTL_HOURS = 12;
+/**
+ * Sign-in throttling. Failures are counted per account AND address, so a stranger who types the owner's email wrong
+ * eight times only blocks their own address, not the owner. A much higher ceiling per account (from anywhere) still
+ * caps distributed password guessing.
+ */
+const MAX_FAILED_PER_ADDRESS = 8;
+const FAIL_WINDOW_SECONDS = 15 * 60;
+const MAX_FAILED_PER_ACCOUNT = 60;
+const ACCOUNT_WINDOW_SECONDS = 60 * 60;
 
 export interface SessionUser {
   id: string;
@@ -73,7 +83,7 @@ export async function rolesOf(userId: string, db: Db = sql): Promise<Role[]> {
 
 /**
  * Verify credentials and create a session. Returns the raw token (to be set as an httpOnly cookie).
- * Rate limited per IP and per identifier; accounts lock temporarily after repeated failures.
+ * Rate limited per IP; repeated failures block that address for that account for a while (see above).
  */
 export async function login(
   identifier: string,
@@ -81,28 +91,42 @@ export async function login(
   meta: { ip?: string | null; userAgent?: string | null; requireAnyRole?: Role[] },
   db: Db = sql,
 ): Promise<{ token: string; userId: string; roles: Role[]; expiresAt: Date }> {
-  const ipKey = `login:ip:${meta.ip ?? 'unknown'}`;
-  const idKey = `login:id:${identifier.trim().toLowerCase()}`;
-  const [a, b] = [await hitRateLimit(ipKey, 30, 15 * 60, db), await hitRateLimit(idKey, 10, 15 * 60, db)];
-  if (!a.allowed || !b.allowed) throw rateLimited();
+  const ident = identifier.trim().toLowerCase().slice(0, 200);
+  const ip = meta.ip ?? 'unknown';
+  const ipKey = `login:ip:${ip}`;
+  const failKey = `login:fail:${ident}:${ip}`;
+  const acctKey = `login:acct:${ident}`;
+  const ipHit = await hitRateLimit(ipKey, 30, 15 * 60, db);
+  if (!ipHit.allowed) throw rateLimited();
+
+  // Same answer for real and made-up accounts, so this does not reveal which accounts exist.
+  const locked = new DomainError('locked', 'Too many failed sign-ins. Try again in a few minutes.', 423);
+  if (
+    (await rateLimitCount(failKey, FAIL_WINDOW_SECONDS, db)) >= MAX_FAILED_PER_ADDRESS ||
+    (await rateLimitCount(acctKey, ACCOUNT_WINDOW_SECONDS, db)) >= MAX_FAILED_PER_ACCOUNT
+  ) {
+    throw locked;
+  }
+
+  const recordFailure = async () => {
+    await hitRateLimit(failKey, MAX_FAILED_PER_ADDRESS, FAIL_WINDOW_SECONDS, db);
+    const acct = await hitRateLimit(acctKey, MAX_FAILED_PER_ACCOUNT, ACCOUNT_WINDOW_SECONDS, db);
+    if (acct.count === MAX_FAILED_PER_ACCOUNT) log.warn('login_account_throttled', { failures: acct.count, windowSeconds: ACCOUNT_WINDOW_SECONDS });
+  };
 
   const generic = new DomainError('invalid_credentials', 'Incorrect email/phone or password.', 401);
   const user = await findUserByIdentifier(identifier, db);
   if (!user) {
     await verifyPassword(password, null);
+    await recordFailure();
     throw generic;
-  }
-  if (user.lockedUntil && user.lockedUntil > new Date()) {
-    throw new DomainError('locked', 'This account is temporarily locked after repeated failed sign-ins. Try again later.', 423);
   }
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok || !user.isActive) {
     if (!ok) {
-      await db`
-        update users set failed_login_count = failed_login_count + 1,
-          locked_until = case when failed_login_count + 1 >= ${MAX_FAILED} then now() + make_interval(mins => ${LOCK_MINUTES}) else locked_until end
-        where id = ${user.id}`;
+      await db`update users set failed_login_count = failed_login_count + 1 where id = ${user.id}`;
     }
+    await recordFailure();
     throw generic;
   }
   const roles = await rolesOf(user.id, db);
@@ -110,13 +134,15 @@ export async function login(
     throw new DomainError('wrong_portal', 'This account does not have access to this area.', 403);
   }
   await db`update users set failed_login_count = 0, locked_until = null, last_login_at = now() where id = ${user.id}`;
-  const { token, expiresAt } = await createSession(user.id, meta, db);
+  await clearRateLimit(failKey, db);
+  const isStaff = roles.some((r) => r !== 'customer');
+  const { token, expiresAt } = await createSession(user.id, meta, db, isStaff ? STAFF_SESSION_TTL_HOURS * 3600_000 : undefined);
   return { token, userId: user.id, roles, expiresAt };
 }
 
-export async function createSession(userId: string, meta: { ip?: string | null; userAgent?: string | null }, db: Db = sql) {
+export async function createSession(userId: string, meta: { ip?: string | null; userAgent?: string | null }, db: Db = sql, ttlMs: number = SESSION_TTL_DAYS * 86400_000) {
   const token = newToken(32);
-  const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 86400_000);
+  const expiresAt = new Date(Date.now() + ttlMs);
   await db`
     insert into sessions (token_hash, user_id, expires_at, ip, user_agent)
     values (${sha256(token)}, ${userId}, ${expiresAt}, ${meta.ip ?? null}, ${(meta.userAgent ?? '').slice(0, 300)})`;

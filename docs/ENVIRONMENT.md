@@ -20,7 +20,8 @@ All variables are **server-only**. No `NEXT_PUBLIC_*` variables are used, so not
 | `RESEND_API_KEY`, `EMAIL_FROM` | with resend | Verified sending domain required |
 | `ADMIN_HOST`, `KITCHEN_HOST`, `RIDER_HOST` | | e.g. `admin.biteandsips.com`. Maps subdomains to portals |
 | `UPLOAD_DIR` | | Photo storage directory (default `./storage/uploads`). Must persist across deploys |
-| `TRUST_PROXY` | | `true` only behind a trusted proxy/CDN that sets X-Forwarded-For (affects rate limiting) |
+| `TRUST_PROXY` | | `true` when running behind a trusted proxy/CDN. Forwarding headers are ignored unless this is `true`; while `false`, all visitors share one rate-limit bucket (fine for development, wrong for a live site) |
+| `TRUSTED_PROXY_HOPS` | | Number of trusted proxies in front of the app (default `1`). The visitor's address is read that many entries from the END of `X-Forwarded-For`. Only used when `TRUST_PROXY=true` |
 | `DELIVERY_SANDBOX_PROVIDER` | | `true` enables the simulated courier in non-production only |
 | `TEST_DATABASE_URL` | tests | Database wiped by `npm test` |
 | `SCRYPT_COST` | tests | Lower password-hash cost for tests only |

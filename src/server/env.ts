@@ -38,6 +38,8 @@ const schema = z.object({
   CRON_SECRET: z.string().min(16).optional(),
   SCRYPT_COST: z.coerce.number().int().optional(),
   TRUST_PROXY: z.enum(['true', 'false']).default('false'),
+  /** How many trusted proxies/CDNs sit in front of the app (each appends to X-Forwarded-For). Only used when TRUST_PROXY=true. */
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(1).max(5).default(1),
 });
 
 export type Env = z.infer<typeof schema>;

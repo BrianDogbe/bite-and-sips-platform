@@ -222,7 +222,7 @@ export default async function Home() {
         )}
       </section>
 
-      {!saveData && <StoryPlayer src="/brand/story.mp4" poster="/brand/hero-bg.jpg" title="Good food. Good mood." subtitle="Made fresh, ready for pickup or on its way to you." />}
+      {!saveData && <StoryPlayer src="/brand/story.mp4" poster="/brand/story-poster.jpg" title="Good food. Good mood." subtitle="Made fresh, ready for pickup or on its way to you." />}
 
       <section className="border-y border-[var(--border)] bg-ivory-2 py-[clamp(72px,10vw,144px)]" aria-labelledby="how-title">
         <div className="mx-auto w-full max-w-[var(--maxw)] px-[var(--gutter)]">
