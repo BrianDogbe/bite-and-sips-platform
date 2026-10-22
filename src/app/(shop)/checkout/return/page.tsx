@@ -10,9 +10,11 @@ export const dynamic = 'force-dynamic';
  * The payment provider redirects here after checkout. We never trust the redirect itself:
  * the payment is verified server-side with the provider before the tracking page shows it as paid.
  */
-export default async function PaymentReturn({ searchParams }: { searchParams: Promise<{ reference?: string; trxref?: string }> }) {
+export default async function PaymentReturn({ searchParams }: { searchParams: Promise<{ reference?: string | string[]; trxref?: string | string[] }> }) {
   const sp = await searchParams;
-  const reference = (sp.reference ?? sp.trxref ?? '').slice(0, 80);
+  // Paystack appends its own reference/trxref to our callback address, so a name can arrive twice (an array).
+  const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
+  const reference = (first(sp.reference) || first(sp.trxref)).slice(0, 80);
   const [row] = reference ? await sql<{ trackingToken: string }[]>`select o.tracking_token from payment_attempts a join orders o on o.id = a.order_id where a.reference = ${reference}` : [];
   if (!row) {
     return (

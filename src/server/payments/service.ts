@@ -90,7 +90,7 @@ export async function startPayment(trackingToken: string, ctx: { ip?: string | n
       amountPesewas: order.totalPesewas,
       currency: 'GHS',
       email: order.customerEmail ?? '',
-      callbackUrl: `${env().APP_URL}/checkout/return?reference=${encodeURIComponent(reference)}`,
+      callbackUrl: `${env().APP_URL}/checkout/return`,
       metadata: { order_number: order.orderNumber, order_id: order.id },
     });
     await tx(async (t) => {
