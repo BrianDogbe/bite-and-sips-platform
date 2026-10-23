@@ -1,15 +1,16 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useLive, postJson } from '@/lib/use-live';
 import { formatGHS, parseCedisToPesewas } from '@/lib/money';
 import { formatLocalTime } from '@/lib/time';
 import { Badge } from '../Badge';
-import { fulfillmentTone, labelFulfillment, labelKitchen } from '@/lib/status-ui';
+import { fulfillmentTone, labelFulfillment, labelKitchen, labelPayment } from '@/lib/status-ui';
 import { MapEmbed, directionsUrl } from '../shop/MapEmbed';
 import type { DispatchRow } from '@/server/orders/queries';
 import type { RiderStatus } from '@/server/fulfillment/inhouse';
-import { OPTGROUP, OPT_LEGEND } from '../ui';
+import { DIALOG, OPTGROUP, OPT_LEGEND } from '../ui';
 import { C_DSP_COUNT, C_DSP_EMPTY, C_DSP_HEAD, C_LIVE_PILL } from '@/components/ui';
 
 interface Board {
@@ -29,6 +30,20 @@ function ago(iso: string | Date | null, now: number) {
   return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`;
 }
 
+/** A visible label above a dispatch input; placeholders alone vanish once someone starts typing. */
+function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+  return (
+    <div className="grid [gap:4px]">
+      <label className="label" htmlFor={id}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+const NARROW = '(max-width: 1099px)';
+
 export function DispatchBoard({ timezone }: { timezone: string }) {
   const { data, status, error, lastSuccess, refresh } = useLive<Board>({ url: '/api/dispatch/board', topics: ['dispatch'], pollMs: 15000 });
   const [now, setNow] = useState(Date.now());
@@ -36,13 +51,32 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
+  // Below 1100px the side panel would land under every list, so the details open as a bottom sheet instead.
+  const [narrow, setNarrow] = useState(false);
+  const [sheetBody, setSheetBody] = useState<HTMLDivElement | null>(null);
+  const sheet = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 10000);
     return () => clearInterval(t);
   }, []);
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW);
+    const sync = () => setNarrow(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   const orders = data?.orders ?? [];
   const sel = orders.find((o) => o.id === selected) ?? null;
+  const showSheet = narrow && !!sel;
+  useEffect(() => {
+    const d = sheet.current;
+    if (!d) return;
+    if (showSheet && !d.open) d.showModal();
+    if (!showSheet && d.open) d.close();
+  }, [showSheet]);
+  const placeDetail = (node: ReactNode) => (narrow && sheetBody ? createPortal(node, sheetBody) : node);
   const groups = [
     { title: 'Needs a rider or partner', list: orders.filter((o) => o.fulfillmentStatus === 'unassigned' || o.fulfillmentStatus === 'pending') },
     { title: 'Assigned, not picked up', list: orders.filter((o) => ['assigned', 'accepted', 'at_restaurant', 'requested'].includes(o.fulfillmentStatus)) },
@@ -95,7 +129,12 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
                 <table className="data">
                   <tbody>
                     {g.list.map((o) => (
-                      <tr key={o.id} className={o.needsAttention ? 'attention' : undefined} style={{ cursor: 'pointer', background: selected === o.id ? '#eef6f2' : undefined }} onClick={() => (setSelected(o.id), setMsg(null), setForm({}))}>
+                      <tr
+                        key={o.id}
+                        aria-selected={selected === o.id}
+                        className={`cursor-pointer aria-selected:[background:#eef6f2] aria-selected:[&>td:first-child]:[box-shadow:inset_4px_0_0_var(--sage-dark)]${o.needsAttention ? ' attention' : ''}`}
+                        onClick={() => (setSelected(o.id), setMsg(null), setForm({}))}
+                      >
                         <td>
                           <button type="button" className="linkish tnum" onClick={() => setSelected(o.id)}>
                             {o.orderNumber}
@@ -162,13 +201,13 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
         </section>
       </div>
 
-      <aside className="sticky [top:16px] max-[1100px]:static">
+      <aside className="sticky [top:16px] max-[1099px]:hidden">
         {!sel ? (
           <div className="panel empty [min-height:260px] grid [place-content:center] [border:1.5px_dashed_var(--line-strong,_var(--border))] bg-transparent [padding:32px]">
             <h3>Select a delivery</h3>
             <p>Choose an order on the left to assign a rider, book a partner or update its status.</p>
           </div>
-        ) : (
+        ) : placeDetail(
           <section className="panel stack" style={{ ['--stack' as string]: '12px' }}>
             <div className="row between">
               <h2 style={{ margin: 0 }} className="tnum">
@@ -192,7 +231,7 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
               <dt>Location</dt>
               <dd>{sel.locationVerified ? 'GPS-shared by customer' : <span style={{ color: 'var(--warn)' }}>Area chosen manually — call to confirm</span>}</dd>
               <dt>Payment</dt>
-              <dd>{sel.paymentStatus === 'cash_due' ? `Cash to collect: ${formatGHS(sel.totalPesewas)}` : sel.paymentStatus}</dd>
+              <dd>{sel.paymentStatus === 'cash_due' ? `Cash to collect: ${formatGHS(sel.totalPesewas)}` : labelPayment(sel.paymentStatus)}</dd>
               <dt>Ready by</dt>
               <dd>{formatLocalTime(sel.promisedAt, timezone)}</dd>
             </dl>
@@ -231,8 +270,10 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
                     <input type="checkbox" checked={f('offline') === '1'} onChange={(e) => set('offline', e.target.checked ? '1' : '')} /> Assign anyway (rider’s app hasn’t been active recently)
                   </label>
                 )}
-                <div className="row" style={{ marginTop: 8 }}>
-                  <input className="input" style={{ maxWidth: 160 }} placeholder={`Rider fee (GH₵)${data?.defaultRiderFeePesewas ? ` default ${(data.defaultRiderFeePesewas / 100).toFixed(2)}` : ''}`} value={f('fee')} onChange={(e) => set('fee', e.target.value)} inputMode="decimal" aria-label="Rider fee in cedis" />
+                <div className="row [align-items:end]" style={{ marginTop: 8 }}>
+                  <Field id="dsp-fee" label="Rider fee (GH₵)">
+                    <input id="dsp-fee" className="input" style={{ maxWidth: 160 }} placeholder={data?.defaultRiderFeePesewas ? `Default ${(data.defaultRiderFeePesewas / 100).toFixed(2)}` : undefined} value={f('fee')} onChange={(e) => set('fee', e.target.value)} inputMode="decimal" />
+                  </Field>
                   <button
                     className="btn leaf"
                     disabled={busy || !f('rider')}
@@ -242,8 +283,12 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
                   </button>
                 </div>
                 {sel.riderUserId && (
-                  <div className="row" style={{ marginTop: 8 }}>
-                    <input className="input grow" placeholder="Reason for removing the rider" value={f('unreason')} onChange={(e) => set('unreason', e.target.value)} />
+                  <div className="row [align-items:end]" style={{ marginTop: 8 }}>
+                    <div className="grow">
+                      <Field id="dsp-unreason" label="Reason for removing the rider">
+                        <input id="dsp-unreason" className="input" value={f('unreason')} onChange={(e) => set('unreason', e.target.value)} />
+                      </Field>
+                    </div>
                     <button className="btn" disabled={busy || !f('unreason')} onClick={() => run({ action: 'unassign', reason: f('unreason') }, 'Rider removed. Order is back in the queue.')}>
                       Remove rider
                     </button>
@@ -264,10 +309,18 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
                 <details>
                   <summary className="linkish">Record a booking made by phone/WhatsApp</summary>
                   <div className="stack" style={{ ['--stack' as string]: '8px', marginTop: 8 }}>
-                    <input className="input" placeholder="Partner name (e.g. Bolt Send, local courier)" value={f('pname')} onChange={(e) => set('pname', e.target.value)} />
-                    <input className="input" placeholder="Partner reference (optional)" value={f('pref')} onChange={(e) => set('pref', e.target.value)} />
-                    <input className="input" placeholder="Fee charged by partner (GH₵)" inputMode="decimal" value={f('pfee')} onChange={(e) => set('pfee', e.target.value)} />
-                    <input className="input" placeholder="Notes (e.g. expected pickup 13:20)" value={f('pnotes')} onChange={(e) => set('pnotes', e.target.value)} />
+                    <Field id="dsp-pname" label="Partner name">
+                      <input id="dsp-pname" className="input" placeholder="e.g. Bolt Send, local courier" value={f('pname')} onChange={(e) => set('pname', e.target.value)} />
+                    </Field>
+                    <Field id="dsp-pref" label="Partner reference (optional)">
+                      <input id="dsp-pref" className="input" value={f('pref')} onChange={(e) => set('pref', e.target.value)} />
+                    </Field>
+                    <Field id="dsp-pfee" label="Fee charged by partner (GH₵)">
+                      <input id="dsp-pfee" className="input" inputMode="decimal" value={f('pfee')} onChange={(e) => set('pfee', e.target.value)} />
+                    </Field>
+                    <Field id="dsp-pnotes" label="Notes (optional)">
+                      <input id="dsp-pnotes" className="input" placeholder="e.g. expected pickup 13:20" value={f('pnotes')} onChange={(e) => set('pnotes', e.target.value)} />
+                    </Field>
                     <button className="btn" disabled={busy || !f('pname')} onClick={() => run({ action: 'manual_booking', providerName: f('pname'), externalRef: f('pref') || null, feePesewas: f('pfee') ? parseCedisToPesewas(f('pfee')) : null, notes: f('pnotes') || null, idempotencyKey: key() }, 'Manual booking recorded.')}>
                       Save manual booking
                     </button>
@@ -283,8 +336,12 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
                 <button className="btn block" disabled={busy} onClick={() => run({ action: 'partner_reconcile', bookingId: sel.bookingId }, 'Checked with partner.')}>
                   Ask the partner
                 </button>
-                <div className="row" style={{ marginTop: 8 }}>
-                  <input className="input grow" placeholder="Partner reference if it was booked" value={f('rref')} onChange={(e) => set('rref', e.target.value)} />
+                <div className="row [align-items:end]" style={{ marginTop: 8 }}>
+                  <div className="grow">
+                    <Field id="dsp-rref" label="Partner reference, if it was booked">
+                      <input id="dsp-rref" className="input" value={f('rref')} onChange={(e) => set('rref', e.target.value)} />
+                    </Field>
+                  </div>
                   <button className="btn" disabled={busy || !f('rref')} onClick={() => run({ action: 'partner_reconcile', bookingId: sel.bookingId, outcome: 'booked', externalRef: f('rref') }, 'Marked as booked.')}>
                     It was booked
                   </button>
@@ -306,9 +363,25 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
                   <option value="delivered">Delivered</option>
                   <option value="failed">Failed</option>
                 </select>
-                {f('pstatus') === 'courier_assigned' && <input className="input" style={{ marginTop: 8 }} placeholder="Courier name" value={f('cname')} onChange={(e) => set('cname', e.target.value)} />}
-                {f('pstatus') === 'delivered' && <input className="input" style={{ marginTop: 8 }} placeholder="Final fee from partner (GH₵, optional)" inputMode="decimal" value={f('ffee')} onChange={(e) => set('ffee', e.target.value)} />}
-                <input className="input" style={{ marginTop: 8 }} placeholder="Note (optional)" value={f('pnote')} onChange={(e) => set('pnote', e.target.value)} />
+                {f('pstatus') === 'courier_assigned' && (
+                  <div style={{ marginTop: 8 }}>
+                    <Field id="dsp-cname" label="Courier name">
+                      <input id="dsp-cname" className="input" value={f('cname')} onChange={(e) => set('cname', e.target.value)} />
+                    </Field>
+                  </div>
+                )}
+                {f('pstatus') === 'delivered' && (
+                  <div style={{ marginTop: 8 }}>
+                    <Field id="dsp-ffee" label="Final fee from partner (GH₵, optional)">
+                      <input id="dsp-ffee" className="input" inputMode="decimal" value={f('ffee')} onChange={(e) => set('ffee', e.target.value)} />
+                    </Field>
+                  </div>
+                )}
+                <div style={{ marginTop: 8 }}>
+                  <Field id="dsp-pnote" label="Note (optional)">
+                    <input id="dsp-pnote" className="input" value={f('pnote')} onChange={(e) => set('pnote', e.target.value)} />
+                  </Field>
+                </div>
                 <button
                   className="btn"
                   style={{ marginTop: 8 }}
@@ -318,8 +391,12 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
                   Save status
                 </button>
                 {['requested', 'assigned'].includes(sel.fulfillmentStatus) && (
-                  <div className="row" style={{ marginTop: 8 }}>
-                    <input className="input grow" placeholder="Reason for cancelling the booking" value={f('creason')} onChange={(e) => set('creason', e.target.value)} />
+                  <div className="row [align-items:end]" style={{ marginTop: 8 }}>
+                    <div className="grow">
+                      <Field id="dsp-creason" label="Reason for cancelling the booking">
+                        <input id="dsp-creason" className="input" value={f('creason')} onChange={(e) => set('creason', e.target.value)} />
+                      </Field>
+                    </div>
                     <button className="btn" disabled={busy || !f('creason')} onClick={() => run({ action: 'partner_cancel', reason: f('creason') }, 'Partner booking cancelled.')}>
                       Cancel booking
                     </button>
@@ -331,9 +408,17 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
             {sel.method === 'in_house' && ['picked_up', 'on_the_way', 'arrived'].includes(sel.fulfillmentStatus) && (
               <fieldset className={OPTGROUP} style={{ margin: 0 }}>
                 <legend className={OPT_LEGEND}>Delivery problems</legend>
-                <input className="input" placeholder="Reason (required)" value={f('oreason')} onChange={(e) => set('oreason', e.target.value)} />
+                <Field id="dsp-oreason" label="What happened? (required)">
+                  <input id="dsp-oreason" className="input" value={f('oreason')} onChange={(e) => set('oreason', e.target.value)} />
+                </Field>
                 <div className="row" style={{ marginTop: 8 }}>
-                  <button className="btn" disabled={busy || f('oreason').length < 5} onClick={() => run({ action: 'override', reason: f('oreason') }, 'Delivery confirmed without PIN.')}>
+                  <button
+                    className="btn"
+                    disabled={busy || f('oreason').length < 5}
+                    onClick={() => {
+                      if (window.confirm(`Confirm order ${sel.orderNumber} as delivered without the customer’s PIN? Only do this after confirming with the customer by phone.`)) void run({ action: 'override', reason: f('oreason') }, 'Delivery confirmed without PIN.');
+                    }}
+                  >
                     Confirm delivered without PIN
                   </button>
                   <button className="btn danger" disabled={busy || !f('oreason')} onClick={() => run({ action: 'fail', reason: f('oreason') }, 'Marked as failed.')}>
@@ -347,7 +432,9 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
             {['failed', 'returned'].includes(sel.fulfillmentStatus) && (
               <fieldset className={OPTGROUP} style={{ margin: 0 }}>
                 <legend className={OPT_LEGEND}>After a failed delivery</legend>
-                <input className="input" placeholder="Note" value={f('fnote')} onChange={(e) => set('fnote', e.target.value)} />
+                <Field id="dsp-fnote" label="Note (optional)">
+                  <input id="dsp-fnote" className="input" value={f('fnote')} onChange={(e) => set('fnote', e.target.value)} />
+                </Field>
                 <div className="row" style={{ marginTop: 8 }}>
                   <button className="btn leaf" disabled={busy} onClick={() => run({ action: 'resolve_failed', next: 'unassigned', reason: f('fnote') || 'Reattempt' }, 'Back in the dispatch queue for another attempt.')}>
                     Try again
@@ -361,9 +448,25 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
                 <p className="hint">To cancel and refund, open the full order.</p>
               </fieldset>
             )}
-          </section>
+          </section>,
         )}
       </aside>
+
+      <dialog
+        ref={sheet}
+        // The shared centred dialog above 640px; at 640px and below, a full-width sheet pinned to the bottom.
+        className={`${DIALOG} overflow-y-auto max-[640px]:fixed max-[640px]:inset-x-0 max-[640px]:top-auto max-[640px]:bottom-0 max-[640px]:w-full! max-[640px]:max-w-none! max-[640px]:max-h-[85dvh]! max-[640px]:rounded-t-[var(--r-lg)]`}
+        aria-label={sel ? `Delivery ${sel.orderNumber}` : 'Delivery'}
+        onClose={() => narrow && setSelected(null)}
+        onClick={(e) => e.target === e.currentTarget && sheet.current?.close()}
+      >
+        <div className="flex justify-end [padding:12px_12px_0]">
+          <button type="button" className="btn sm" onClick={() => sheet.current?.close()}>
+            Close
+          </button>
+        </div>
+        <div ref={setSheetBody} className="[padding:8px_12px_16px] [&_.panel]:border-0 [&_.panel]:p-0 [&_.panel]:shadow-none" />
+      </dialog>
     </div>
   );
 }
