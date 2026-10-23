@@ -123,8 +123,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
           <p>New orders appear here as soon as customers place them.</p>
         </div>
       ) : (
-        <div className="table-wrap">
-          <table className="data [&_td:first-child]:whitespace-nowrap [&_td:first-child]:[min-width:190px] [&_td_.small]:[margin-top:3px] [min-width:1360px] [&_th]:[padding:22px_22px] [&_th]:[vertical-align:middle] [&]:[&_th]:[padding-top:16px] [&]:[&_th]:[padding-bottom:16px] [&_td]:[padding:22px_22px] [&_td]:[vertical-align:middle] [&_td:nth-child(2)]:[color:var(--ink)] [&_td:nth-child(3)]:[color:var(--muted)] [&_tbody_tr]:[border-top:1px_solid_var(--line)] [&_tbody_tr:hover]:[background:var(--ivory)] [table.data&_th]:[vertical-align:middle] [table.data&_th]:[padding:18px_26px] [table.data&_td]:[vertical-align:middle] [table.data&_td]:[padding:28px_26px] [table.data&]:[min-width:1560px] orders-table">
+        <div className="table-wrap w-fit">
+          <table className="data [table.data&]:w-auto [table.data&]:[min-width:0] [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_td_.small]:[margin-top:3px] [&_td:nth-child(2)]:[color:var(--ink)] [&_td:nth-child(3)]:[color:var(--muted)] [&_tbody_tr]:[border-top:1px_solid_var(--line)] [&_tbody_tr:hover]:[background:var(--ivory)] [table.data&_th]:[vertical-align:middle] [table.data&_th]:[padding:14px_14px] [table.data&_td]:[vertical-align:middle] [table.data&_td]:[padding:0_14px] [table.data&_td]:[height:64px] [table.data&_th]:text-center [table.data&_td]:text-center orders-table">
             <thead>
               <tr>
                 <th>Order</th>

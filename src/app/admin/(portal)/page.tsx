@@ -81,10 +81,10 @@ export default async function Overview() {
   const visibleActions = actions.filter((a) => a.show);
 
   const kpis: { icon: IconName; label: string; value: string; hint: string; href: string; tone?: 'danger' }[] = [];
+  kpis.push({ icon: 'alert', label: 'Need attention', value: String(c.attention), hint: c.attention ? 'Review flagged orders' : 'Nothing flagged', href: '/admin/orders?attention=1', tone: c.attention ? 'danger' : undefined });
   if (canFinance) kpis.push({ icon: 'dollar', label: 'Sales today', value: formatGHS(ov.sales.paidSales), hint: 'Verified payments received today', href: '/admin/finance' });
   kpis.push({ icon: 'receipt', label: 'Orders today', value: String(c.todayOrders), hint: `${c.pendingPayment} awaiting payment`, href: '/admin/orders' });
   if (canFinance) kpis.push({ icon: 'trend', label: 'Average paid order', value: ov.sales.aov != null ? formatGHS(ov.sales.aov) : 'None yet', hint: 'Across today’s paid orders', href: '/admin/finance' });
-  kpis.push({ icon: 'alert', label: 'Need attention', value: String(c.attention), hint: c.attention ? 'Review flagged orders' : 'Nothing flagged', href: '/admin/orders?attention=1', tone: c.attention ? 'danger' : undefined });
 
   return (
     <>
