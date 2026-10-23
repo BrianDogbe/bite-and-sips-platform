@@ -16,6 +16,8 @@ export function useLive<T>(opts: { url: string; topics?: string[]; token?: strin
   const { url, topics = [], token, pollMs = 15000, initial = null, enabled = true } = opts;
   const [data, setData] = useState<T | null>(initial);
   const [error, setError] = useState<string | null>(null);
+  // Separate from `error`: a lost sign-in needs the person to sign in, not to check the wifi.
+  const [signedOut, setSignedOut] = useState(false);
   const [status, setStatus] = useState<LiveStatus>('connecting');
   const [lastSuccess, setLastSuccess] = useState<number | null>(initial ? Date.now() : null);
   const inflight = useRef<AbortController | null>(null);
@@ -29,12 +31,14 @@ export function useLive<T>(opts: { url: string; topics?: string[]; token?: strin
       const res = await fetch(url, { cache: 'no-store', signal: ac.signal, headers: { accept: 'application/json' } });
       if (res.status === 401 || res.status === 403) {
         setError('Your session has ended. Please sign in again.');
+        setSignedOut(true);
         return;
       }
       const body = await res.json();
       if (!res.ok) throw new Error(body?.error?.message ?? `HTTP ${res.status}`);
       setData(body as T);
       setError(null);
+      setSignedOut(false);
       setLastSuccess(Date.now());
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
@@ -88,7 +92,7 @@ export function useLive<T>(opts: { url: string; topics?: string[]; token?: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, token, topics.join(','), pollMs, enabled]);
 
-  return { data, setData, error, status, lastSuccess, refresh };
+  return { data, setData, error, signedOut, status, lastSuccess, refresh };
 }
 
 /** POST JSON helper returning the parsed body or throwing an Error with the server's message. */

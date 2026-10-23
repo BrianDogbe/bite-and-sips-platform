@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useLive, postJson } from '@/lib/use-live';
 import { formatLocalTime } from '@/lib/time';
 import { Icon } from '../Icon';
@@ -16,10 +16,27 @@ function mins(fromIso: string | Date | null, now: number) {
   return Math.floor((now - new Date(fromIso).getTime()) / 60000);
 }
 
-function beep() {
+const SOUND_KEY = 'bs-kds-sound';
+const REMIND_MS = 30000;
+
+// One shared audio context. Browsers keep it suspended until someone taps the page, so callers check `state`.
+let audioCtx: AudioContext | null = null;
+function getAudio() {
   try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      audioCtx = new Ctx();
+    }
+    return audioCtx;
+  } catch {
+    return null;
+  }
+}
+
+function beep() {
+  const ctx = getAudio();
+  if (!ctx || ctx.state !== 'running') return;
+  try {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = 'square';
@@ -30,7 +47,6 @@ function beep() {
     o.connect(g).connect(ctx.destination);
     o.start();
     o.stop(ctx.currentTime + 0.55);
-    setTimeout(() => ctx.close(), 800);
   } catch {
     /* audio unavailable — visual alerts still shown */
   }
@@ -54,9 +70,10 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
       document.removeEventListener('keydown', onKey);
     };
   }, [userMenu]);
-  const { data, status, error, lastSuccess, refresh } = useLive<KitchenQueue>({ url: '/api/kitchen/queue', topics: ['kitchen'], pollMs: 10000 });
+  const { data, status, error, signedOut, lastSuccess, refresh } = useLive<KitchenQueue>({ url: '/api/kitchen/queue', topics: ['kitchen'], pollMs: 10000 });
   const [now, setNow] = useState(Date.now());
   const [sound, setSound] = useState(false);
+  const [audioOk, setAudioOk] = useState(true);
   const [toast, setToast] = useState<{ msg: string; error?: boolean } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
@@ -78,6 +95,48 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
     const t = setTimeout(() => setToast(null), toast.error ? 6000 : 2500);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Sound choice survives a reload; a stored "on" still needs one tap before the browser lets it play.
+  useEffect(() => {
+    if (readOnly) return;
+    try {
+      if (localStorage.getItem(SOUND_KEY) === '1') setSound(true);
+    } catch {
+      /* storage unavailable — sound starts off */
+    }
+  }, [readOnly]);
+  useEffect(() => {
+    if (!sound) return;
+    const ctx = getAudio();
+    if (!ctx) {
+      setAudioOk(false);
+      return;
+    }
+    const sync = () => setAudioOk(ctx.state === 'running');
+    const unlock = () => {
+      if (ctx.state !== 'running') void ctx.resume().catch(() => {});
+    };
+    sync();
+    ctx.addEventListener('statechange', sync);
+    document.addEventListener('pointerdown', unlock);
+    document.addEventListener('keydown', unlock);
+    return () => {
+      ctx.removeEventListener('statechange', sync);
+      document.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('keydown', unlock);
+    };
+  }, [sound]);
+  function toggleSound() {
+    // On but blocked: this tap unlocks it rather than turning it off.
+    const next = sound && audioOk ? false : true;
+    setSound(next);
+    try {
+      localStorage.setItem(SOUND_KEY, next ? '1' : '0');
+    } catch {
+      /* not remembered — still works for this session */
+    }
+    if (next) void getAudio()?.resume().then(beep).catch(() => {});
+  }
 
   // New-order alerts (sound if enabled + visual flash). First load only seeds the set.
   useEffect(() => {
@@ -143,10 +202,41 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
   const orders = data?.orders ?? [];
   const isLate = (o: Ticket) => ['new', 'accepted', 'preparing'].includes(o.kitchenStatus) && new Date(o.promisedAt).getTime() < now;
   const lateCount = orders.filter(isLate).length;
+  const unaccepted = orders.filter((o) => o.kitchenStatus === 'new');
+  const unacceptedCount = unaccepted.length;
+
+  // Keep nagging until every new order is accepted: chime every 30s, count in the tab title.
+  useEffect(() => {
+    if (readOnly || !sound || !unacceptedCount) return;
+    const t = setInterval(beep, REMIND_MS);
+    return () => clearInterval(t);
+  }, [readOnly, sound, unacceptedCount]);
+  useEffect(() => {
+    if (readOnly) return;
+    const strip = () => document.title.replace(/^\(\d+\) /, '');
+    document.title = unacceptedCount ? `(${unacceptedCount}) ${strip()}` : strip();
+    return () => {
+      document.title = strip();
+    };
+  }, [readOnly, unacceptedCount]);
+
+  function showFirstUnaccepted() {
+    const el = unaccepted[0] && document.getElementById(`kds-${unaccepted[0].id}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el?.focus({ preventScroll: true });
+  }
+
   const filter = (o: Ticket) => !lateOnly || isLate(o);
   const cols = useMemo(
     () => [
-      { key: 'new', title: 'New', list: orders.filter((o) => (o.kitchenStatus === 'new' || o.kitchenStatus === 'accepted') && filter(o)) },
+      {
+        key: 'new',
+        title: 'New',
+        // Waiting-to-accept first; sort is stable so arrival order holds inside each group.
+        list: orders
+          .filter((o) => (o.kitchenStatus === 'new' || o.kitchenStatus === 'accepted') && filter(o))
+          .sort((a, b) => (a.kitchenStatus === 'new' ? 0 : 1) - (b.kitchenStatus === 'new' ? 0 : 1)),
+      },
       { key: 'preparing', title: 'Preparing', list: orders.filter((o) => o.kitchenStatus === 'preparing' && filter(o)) },
       { key: 'ready', title: 'Ready / handoff', list: orders.filter((o) => o.kitchenStatus === 'ready' && filter(o)) },
     ],
@@ -154,8 +244,8 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
     [orders, lateOnly, now],
   );
   const staleMs = lastSuccess ? now - lastSuccess : Infinity;
-  const connClass = error && staleMs > 30000 ? 'down' : status === 'live' && staleMs < 45000 ? '' : 'stale';
-  const connText = connClass === 'down' ? 'Offline — orders may be missing' : connClass === 'stale' ? `Reconnecting (data ${lastSuccess ? `${Math.round(staleMs / 1000)}s old` : 'not loaded'})` : 'Live';
+  const connClass = signedOut || (error && staleMs > 30000) ? 'down' : status === 'live' && staleMs < 45000 ? '' : 'stale';
+  const connText = signedOut ? 'Signed out — not receiving orders' : connClass === 'down' ? 'Offline — orders may be missing' : connClass === 'stale' ? `Reconnecting (data ${lastSuccess ? `${Math.round(staleMs / 1000)}s old` : 'not loaded'})` : 'Live';
 
   return (
     <div className="[--font-display:var(--font-body)] [background:var(--ivory)] [color:var(--charcoal)] [min-height:100dvh] [font-size:1.05rem] [&_h1]:font-extrabold [&_h1]:[letter-spacing:-0.01em] [&_h2]:font-extrabold [&_h2]:[letter-spacing:-0.01em] [&_h3]:font-extrabold [&_h3]:[letter-spacing:-0.01em] [.admin-main_&]:[min-height:0] [.admin-main_&]:bg-transparent [.admin-main_&]:[font-size:1rem]">
@@ -166,6 +256,11 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
         <span className={`inline-flex items-center [gap:8px] font-bold [padding:6px_12px] rounded-full [background:var(--ok-bg)] [color:var(--ok)] [&_.dot]:[width:10px] [&_.dot]:[height:10px] [&_.dot]:rounded-[50%] [&_.dot]:[background:var(--status-ready)] [&.stale]:[background:var(--warn-bg)] [&.stale]:[color:var(--warn)] [&.stale_.dot]:[background:var(--status-prep)] [&.down]:[background:var(--danger-bg)] [&.down]:[color:var(--danger)] [&&.down_.dot]:[background:var(--status-urgent)] ${connClass}`} role="status" aria-live="polite">
           <span className="dot" aria-hidden="true" /> {connText}
         </span>
+        {unacceptedCount > 0 && (
+          <button className="btn sm [.kds-top_.btn&]:[background:var(--status-new)] [.kds-top_.btn&]:[border-color:var(--status-new)] [.kds-top_.btn&]:[color:#fff]" onClick={showFirstUnaccepted}>
+            <Icon name="bell" size={16} /> {unacceptedCount} waiting to accept
+          </button>
+        )}
         {lateCount > 0 && (
           <button className="btn danger sm" aria-pressed={lateOnly} onClick={() => setLateOnly((x) => !x)}>
             <Icon name="alert" size={16} /> {lateCount} late{lateOnly ? ' (showing only late)' : ''}
@@ -188,8 +283,8 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
           </button>
         )}
         {!readOnly && (
-          <button className="btn sm" onClick={() => setSound((s) => !s)} aria-pressed={sound} title="New-order sound">
-            <Icon name={sound ? 'volume' : 'mute'} size={18} /> {sound ? 'Sound on' : 'Sound off'}
+          <button className={`btn sm${sound && audioOk ? '' : ' [.kds-top_.btn&]:[background:var(--warn-bg)] [.kds-top_.btn&]:[border-color:#f0d18f] [.kds-top_.btn&]:[color:var(--warn)]'}`} onClick={toggleSound} aria-pressed={sound && audioOk} title="New-order sound">
+            <Icon name={sound && audioOk ? 'volume' : 'mute'} size={18} /> {!sound ? 'Sound off — tap to turn on' : audioOk ? 'Sound on' : 'Sound blocked — tap to allow'}
           </button>
         )}
         <button className="btn sm" onClick={() => void refresh()}>
@@ -280,7 +375,18 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
           <span className="spinner" /> Loading orders…
         </p>
       )}
-      {error && !data && <p className="alert error" style={{ margin: 16 }}>{error}</p>}
+      {signedOut && (
+        <section role="alert" className="flex items-center justify-between flex-wrap [gap:12px_20px] [margin:14px] [padding:18px_20px] [background:var(--danger-bg)] [border:2px_solid_var(--danger)] [border-radius:16px] [color:#7a1a12] [.admin-main_&]:[margin:0_0_24px]">
+          <div className="grid [gap:4px]">
+            <strong className="[font-size:1.3rem]">You’ve been signed out</strong>
+            <span>New orders won’t appear on this screen until someone signs in again.</span>
+          </div>
+          <a className="btn primary [min-height:56px] [font-size:1.1rem]" href={readOnly ? '/admin/login' : '/kitchen/login'}>
+            Sign in again
+          </a>
+        </section>
+      )}
+      {error && !data && !signedOut && <p className="alert error" style={{ margin: 16 }}>{error}</p>}
 
       <div className="grid [gap:14px] [padding:14px] [align-items:start] [grid-template-columns:repeat(3,_minmax(min(100%,_300px),_1fr))] [.admin-main_&]:[min-height:420px] [.admin-main_&]:p-0 [.admin-main_&]:[gap:24px] max-[1000px]:[grid-template-columns:1fr] max-[1000px]:[.admin-main_&]:[grid-template-columns:1fr]">
         {cols.map((c) => (
@@ -289,14 +395,23 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
               {c.title} <span className="count">{c.list.length}</span>
             </h2>
             {c.list.length === 0 && <p className="grid place-items-center [min-height:140px] m-0 [border:1.5px_dashed_var(--line-strong,_var(--border))] [border-radius:12px] [color:var(--muted)] font-semibold text-center [.admin-main_&]:[min-height:180px] [.kds-alerts_&&]:[min-height:90px] [.kds-alerts_&]:[gap:6px] [.kds-alerts_&]:[padding:16px]">{c.key === 'new' ? 'No new orders.' : 'Nothing here.'}</p>}
-            {c.list.map((t) => {
+            {c.list.map((t, i) => {
               const late = isLate(t);
+              const waitingAccept = t.kitchenStatus === 'new';
+              const groupStart = c.key === 'new' && t.kitchenStatus !== c.list[i - 1]?.kitchenStatus;
+              const groupSize = c.list.filter((o) => o.kitchenStatus === t.kitchenStatus).length;
               const waiting = mins(t.placedAt, now);
               const prep = mins(t.prepStartedAt, now);
               const dueIn = Math.round((new Date(t.promisedAt).getTime() - now) / 60000);
               const allergens = [...new Set(t.items.flatMap((i) => i.allergens))];
               return (
-                <article key={t.id} className={`[background:var(--white)] [color:var(--charcoal)] [border:1px_solid_var(--border)] [border-radius:var(--r-md)] [margin-bottom:12px] overflow-hidden [&]:[border-top:8px_solid_#9a9288] [&.new]:[border-top-color:var(--status-new)] [&.preparing]:[border-top-color:var(--status-prep)] [&.ready]:[border-top-color:var(--status-ready)] [&.late]:[border-top-color:var(--status-urgent)] [&.late]:[outline:3px_solid_var(--status-urgent)] ${t.kitchenStatus === 'preparing' ? 'preparing' : t.kitchenStatus === 'ready' ? 'ready' : 'new'} ${late ? 'late' : ''} ${fresh.has(t.id) ? '[animation:flash_1.2s_ease-out_2]' : ''}`} aria-label={`Order ${t.orderNumber}${late ? ', late' : ''}`}>
+                <Fragment key={t.id}>
+                {groupStart && (
+                  <h3 className="flex justify-between items-center [margin:4px_2px_8px] [font-size:1rem] [color:var(--espresso)]">
+                    {waitingAccept ? 'Waiting to accept' : 'Accepted — not started'} <span className="tabular-nums">{groupSize}</span>
+                  </h3>
+                )}
+                <article id={`kds-${t.id}`} tabIndex={-1} className={`[background:var(--white)] [&.waiting]:[background:var(--info-bg)] [&.waiting:not(.late)]:[outline:3px_solid_var(--status-new)] focus-visible:[outline:3px_solid_var(--espresso)] [color:var(--charcoal)] [border:1px_solid_var(--border)] [border-radius:var(--r-md)] [margin-bottom:12px] overflow-hidden [&]:[border-top:8px_solid_#9a9288] [&.new]:[border-top-color:var(--status-new)] [&.preparing]:[border-top-color:var(--status-prep)] [&.ready]:[border-top-color:var(--status-ready)] [&.late]:[border-top-color:var(--status-urgent)] [&.late]:[outline:3px_solid_var(--status-urgent)] ${t.kitchenStatus === 'preparing' ? 'preparing' : t.kitchenStatus === 'ready' ? 'ready' : 'new'} ${late ? 'late' : ''} ${waitingAccept ? 'waiting' : ''} ${fresh.has(t.id) ? '[animation:flash_1.2s_ease-out_2]' : ''}`} aria-label={`Order ${t.orderNumber}${waitingAccept ? ', waiting to accept' : ''}${late ? ', late' : ''}`}>
                   <div className="flex justify-between items-start [gap:8px] [padding:12px_14px_8px]">
                     <div>
                       <div className="[font-family:var(--font-body)] font-extrabold [font-size:1.6rem] [letter-spacing:-0.02em] [line-height:1]">{t.orderNumber.replace('BS-', '')}</div>
@@ -304,12 +419,12 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                     </div>
                     <div className="[font-size:0.92rem] [color:#5a4d41] text-right">
                       <span className={`inline-block font-extrabold [font-size:0.85rem] [padding:2px_8px] [border-radius:6px] [background:#efe6d8] [&.delivery]:[background:var(--info-bg)] [&.delivery]:[color:#1b4db5] [&.late]:[background:var(--status-urgent)] [&.late]:[color:#fff] ${t.fulfillmentType === 'delivery' ? 'delivery' : ''}`}>{t.fulfillmentType === 'delivery' ? 'DELIVERY' : 'PICKUP'}</span>{' '}
+                      {waitingAccept && <span className="inline-block font-extrabold [font-size:0.85rem] [padding:2px_8px] [border-radius:6px] [background:var(--status-new)] [color:#fff]">NOT ACCEPTED</span>}{' '}
                       {late && <span className="inline-block font-extrabold [font-size:0.85rem] [padding:2px_8px] [border-radius:6px] [background:#efe6d8] [&.delivery]:[background:var(--info-bg)] [&.delivery]:[color:#1b4db5] [&.late]:[background:var(--status-urgent)] [&.late]:[color:#fff] late">LATE</span>}
                       <div>
                         Due {formatLocalTime(t.promisedAt, timezone)}
                         {t.isAsap ? '' : ' (scheduled)'}
                       </div>
-                      {t.kitchenStatus === 'accepted' && <div>Accepted</div>}
                     </div>
                   </div>
                   <ul className="list-none m-0 [padding:4px_14px_10px] [&_li]:[padding:8px_0] [&_li]:[border-bottom:1px_dashed_#d9ccb6] [&_li:last-child]:[border-bottom:0]">
@@ -345,7 +460,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                   {!readOnly && (
                     <div className="grid [grid-auto-flow:column] [gap:8px] [padding:10px_14px_14px] [&_.btn]:[min-height:56px] [&_.btn]:[font-size:1.1rem]">
                       {t.kitchenStatus === 'new' && (
-                        <button className="btn" disabled={!!busy} onClick={() => act(t, 'accept')}>
+                        <button className="btn primary" disabled={!!busy} onClick={() => act(t, 'accept')}>
                           Accept
                         </button>
                       )}
@@ -395,6 +510,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                     </div>
                   )}
                 </article>
+                </Fragment>
               );
             })}
           </section>

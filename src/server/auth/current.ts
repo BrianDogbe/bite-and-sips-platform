@@ -96,9 +96,10 @@ export async function setSessionCookie(token: string, expiresAt: Date, portal: P
     secure: env().NODE_ENV === 'production',
     sameSite: 'lax' as const,
     path: '/',
-    // Staff portals use a browser-session cookie: it survives refreshes but is gone when the browser is closed,
-    // so opening the site afresh shows the sign-in. Customers keep a persistent login.
-    ...(portal === 'customer' ? { expires: expiresAt } : {}),
+    // Admin uses a browser-session cookie: it survives refreshes but is gone when the browser is closed,
+    // so opening the site afresh shows the sign-in. Customers, the kitchen tablet and the rider app keep the cookie
+    // until the session itself expires, so a reboot or a relaunched app does not sign staff out mid-shift.
+    ...(portal === 'admin' ? {} : { expires: expiresAt }),
   };
   const ctx = requestContext.getStore();
   if (ctx) {

@@ -96,7 +96,7 @@ interface RiderState {
 type LocState = { kind: 'idle' } | { kind: 'asking' } | { kind: 'denied' } | { kind: 'unavailable'; msg: string } | { kind: 'sharing'; lastSent: number | null; lastError: string | null };
 
 export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string; timezone: string; roleLabel?: string }) {
-  const { data, status, error, lastSuccess, refresh } = useLive<RiderState>({ url: '/api/rider/state', topics: ['rider'], pollMs: 15000 });
+  const { data, status, error, signedOut, lastSuccess, refresh } = useLive<RiderState>({ url: '/api/rider/state', topics: ['rider'], pollMs: 15000 });
   const [onDuty, setOnDuty] = useState<boolean | null>(null);
   const [toast, setToast] = useState<{ msg: string; error?: boolean } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -310,7 +310,7 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
           <div className="grid text-right [line-height:1.2] [&_strong]:[font-size:.95rem] [&_span]:[font-size:.74rem] [&_span]:[color:rgba(255,_255,_255,_.7)] [&_span.ok::before]:[content:''] [&_span.ok::before]:inline-block [&_span.ok::before]:[width:7px] [&_span.ok::before]:[height:7px] [&_span.ok::before]:[margin-right:5px] [&_span.ok::before]:rounded-[50%] [&_span.ok::before]:[background:#6fcf8f] [&_span.ok::before]:[vertical-align:1px] rt-duty-text">
             <strong>{onDuty ? 'On duty' : 'Off duty'}</strong>
             <span role="status" className={status === 'live' && !staleData ? 'ok' : `[.rt-duty-text_span&::before]:[content:''] [.rt-duty-text_span&::before]:inline-block [.rt-duty-text_span&::before]:[width:7px] [.rt-duty-text_span&::before]:[height:7px] [.rt-duty-text_span&::before]:[margin-right:5px] [.rt-duty-text_span&::before]:rounded-[50%] [.rt-duty-text_span&::before]:[vertical-align:1px] [.rt-duty-text_span&::before]:[background:#f0a35e]`}>
-              {status === 'live' && !staleData ? 'Connected' : staleData ? 'Connection problem' : 'Reconnecting…'}
+              {signedOut ? 'Signed out' : status === 'live' && !staleData ? 'Connected' : staleData ? 'Connection problem' : 'Reconnecting…'}
             </span>
           </div>
           <button className="relative [width:64px] [height:36px] rounded-full border-0 [background:#9a9288] cursor-pointer flex-none [&::after]:[content:''] [&::after]:absolute [&::after]:[top:4px] [&::after]:[left:4px] [&::after]:[width:28px] [&::after]:[height:28px] [&::after]:rounded-[50%] [&::after]:[background:#fff] [&::after]:[transition:transform_0.15s] aria-checked:[background:var(--status-ready)] [&[aria-checked=true]::after]:[transform:translateX(28px)]" role="switch" aria-checked={!!onDuty} aria-label="On duty" onClick={toggleDuty} disabled={onDuty === null} />
@@ -330,7 +330,19 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
         </div>
       )}
 
-      {error && <p className="alert error" style={{ margin: '12px 14px' }}>{error}</p>}
+      {signedOut ? (
+        <section role="alert" className="grid [gap:12px] [margin:12px_14px] [padding:16px] [background:var(--danger-bg)] [border:2px_solid_var(--danger)] [border-radius:16px] [color:#7a1a12]">
+          <div className="grid [gap:4px]">
+            <strong className="[font-size:1.15rem]">You’ve been signed out</strong>
+            <span>You won’t get new deliveries or updates until you sign in again. Any delivery you’ve accepted stays assigned to you.</span>
+          </div>
+          <a className="btn primary [min-height:52px] [font-size:1.05rem]" href="/rider/login">
+            Sign in again
+          </a>
+        </section>
+      ) : (
+        error && <p className="alert error" style={{ margin: '12px 14px' }}>{error}</p>
+      )}
 
       {tab === 'jobs' && (
         <>
