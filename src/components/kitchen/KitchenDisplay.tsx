@@ -78,6 +78,8 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
   const [busy, setBusy] = useState<string | null>(null);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [lateOnly, setLateOnly] = useState(false);
+  // Below 900px the three columns become tabs; this is the one showing.
+  const [activeCol, setActiveCol] = useState('new');
   const [issueFor, setIssueFor] = useState<Ticket | null>(null);
   const [issueText, setIssueText] = useState('');
   const [soldOutOpen, setSoldOutOpen] = useState(false);
@@ -221,9 +223,12 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
   }, [readOnly, unacceptedCount]);
 
   function showFirstUnaccepted() {
-    const el = unaccepted[0] && document.getElementById(`kds-${unaccepted[0].id}`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el?.focus({ preventScroll: true });
+    setActiveCol('new'); // on a phone the New column may be behind another tab
+    requestAnimationFrame(() => {
+      const el = unaccepted[0] && document.getElementById(`kds-${unaccepted[0].id}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus({ preventScroll: true });
+    });
   }
 
   const filter = (o: Ticket) => !lateOnly || isLate(o);
@@ -388,9 +393,29 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
       )}
       {error && !data && !signedOut && <p className="alert error" style={{ margin: 16 }}>{error}</p>}
 
-      <div className="grid [gap:14px] [padding:14px] [align-items:start] [grid-template-columns:repeat(3,_minmax(min(100%,_300px),_1fr))] [.admin-main_&]:[min-height:420px] [.admin-main_&]:p-0 [.admin-main_&]:[gap:24px] max-[1000px]:[grid-template-columns:1fr] max-[1000px]:[.admin-main_&]:[grid-template-columns:1fr]">
+      <div className="flex [gap:8px] [padding:14px_14px_0] min-[900px]:hidden [.admin-main_&]:[padding:0_0_14px]" role="group" aria-label="Order columns">
+        {cols.map((c) => {
+          const toAccept = c.key === 'new' ? c.list.filter((o) => o.kitchenStatus === 'new').length : 0;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              aria-pressed={activeCol === c.key}
+              onClick={() => setActiveCol(c.key)}
+              className="flex-1 grid place-items-center [gap:2px] [min-height:56px] [padding:6px_8px] [border-radius:12px] [border:1.5px_solid_var(--line-strong)] [background:var(--white)] [color:var(--espresso)] [font:inherit] [&]:font-extrabold [font-size:1rem] cursor-pointer aria-pressed:[background:var(--espresso)] aria-pressed:[border-color:var(--espresso)] aria-pressed:[color:#fff]"
+            >
+              <span>
+                {c.title.split(' /')[0]} <span className="tabular-nums">{c.list.length}</span>
+              </span>
+              {toAccept > 0 && <span className="[font-size:0.8rem] [padding:1px_8px] rounded-full [background:var(--status-new)] [color:#fff]">{toAccept} to accept</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid [gap:14px] [padding:14px] [align-items:start] [grid-template-columns:repeat(3,_minmax(0,_1fr))] max-[899px]:[grid-template-columns:1fr] [.admin-main_&]:[min-height:420px] [.admin-main_&]:p-0 [.admin-main_&]:[gap:24px] max-[1000px]:[.admin-main_&]:[grid-template-columns:1fr]">
         {cols.map((c) => (
-          <section key={c.key} className="[&_h2]:[font-size:1.15rem] [&_h2]:[color:var(--espresso)] [&_h2]:flex [&_h2]:justify-between [&_h2]:[margin-bottom:10px] [&_.count]:[background:var(--espresso)] [&_.count]:[color:#fff] [&_.count]:rounded-full [&_.count]:[padding:0_10px] [.admin-main_&]:[min-height:300px] [.admin-main_&]:[background:#fff] [.admin-main_&]:[border:1px_solid_var(--line)] [&]:[.admin-main_&]:[border-top:4px_solid_var(--line-strong)] [.admin-main_&]:[border-radius:16px] [.admin-main_&]:[padding:22px] [.admin-main_&]:grid [.admin-main_&]:[gap:16px] [.admin-main_&]:[align-content:start] [.admin-main_&_h2]:items-center [.admin-main_&_h2]:[border-bottom:1px_solid_var(--line,_var(--border))] [.admin-main_&_h2]:m-0 [.admin-main_&_h2]:[padding-bottom:14px] [.admin-main_&_h2]:[font-size:1.1rem] [.admin-main_&_h2]:font-extrabold max-[1000px]:[.admin-main_&]:[min-height:0] [.admin-main_&:nth-child(1)]:[border-top-color:var(--status-new)] [.admin-main_&:nth-child(2)]:[border-top-color:var(--status-prep)] [.admin-main_&:nth-child(3)]:[border-top-color:var(--status-ready)] [.admin-main_&_.count]:[min-width:30px] [.admin-main_&_.count]:text-center [.admin-main_&_.count]:[padding:2px_10px] [.admin-main_&_.count]:[font-size:0.9rem]" aria-labelledby={`col-${c.key}`}>
+          <section key={c.key} className={`${activeCol === c.key ? '' : 'max-[899px]:hidden'}[&_h2]:[font-size:1.15rem] [&_h2]:[color:var(--espresso)] [&_h2]:flex [&_h2]:justify-between [&_h2]:[margin-bottom:10px] [&_.count]:[background:var(--espresso)] [&_.count]:[color:#fff] [&_.count]:rounded-full [&_.count]:[padding:0_10px] [.admin-main_&]:[min-height:300px] [.admin-main_&]:[background:#fff] [.admin-main_&]:[border:1px_solid_var(--line)] [&]:[.admin-main_&]:[border-top:4px_solid_var(--line-strong)] [.admin-main_&]:[border-radius:16px] [.admin-main_&]:[padding:22px] [.admin-main_&]:grid [.admin-main_&]:[gap:16px] [.admin-main_&]:[align-content:start] [.admin-main_&_h2]:items-center [.admin-main_&_h2]:[border-bottom:1px_solid_var(--line,_var(--border))] [.admin-main_&_h2]:m-0 [.admin-main_&_h2]:[padding-bottom:14px] [.admin-main_&_h2]:[font-size:1.1rem] [.admin-main_&_h2]:font-extrabold max-[1000px]:[.admin-main_&]:[min-height:0] [.admin-main_&:nth-child(1)]:[border-top-color:var(--status-new)] [.admin-main_&:nth-child(2)]:[border-top-color:var(--status-prep)] [.admin-main_&:nth-child(3)]:[border-top-color:var(--status-ready)] [.admin-main_&_.count]:[min-width:30px] [.admin-main_&_.count]:text-center [.admin-main_&_.count]:[padding:2px_10px] [.admin-main_&_.count]:[font-size:0.9rem]`} aria-labelledby={`col-${c.key}`}>
             <h2 id={`col-${c.key}`}>
               {c.title} <span className="count">{c.list.length}</span>
             </h2>
@@ -412,37 +437,42 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                   </h3>
                 )}
                 <article id={`kds-${t.id}`} tabIndex={-1} className={`[background:var(--white)] [&.waiting]:[background:var(--info-bg)] [&.waiting:not(.late)]:[outline:3px_solid_var(--status-new)] focus-visible:[outline:3px_solid_var(--espresso)] [color:var(--charcoal)] [border:1px_solid_var(--border)] [border-radius:var(--r-md)] [margin-bottom:12px] overflow-hidden [&]:[border-top:8px_solid_#9a9288] [&.new]:[border-top-color:var(--status-new)] [&.preparing]:[border-top-color:var(--status-prep)] [&.ready]:[border-top-color:var(--status-ready)] [&.late]:[border-top-color:var(--status-urgent)] [&.late]:[outline:3px_solid_var(--status-urgent)] ${t.kitchenStatus === 'preparing' ? 'preparing' : t.kitchenStatus === 'ready' ? 'ready' : 'new'} ${late ? 'late' : ''} ${waitingAccept ? 'waiting' : ''} ${fresh.has(t.id) ? '[animation:flash_1.2s_ease-out_2]' : ''}`} aria-label={`Order ${t.orderNumber}${waitingAccept ? ', waiting to accept' : ''}${late ? ', late' : ''}`}>
-                  <div className="flex justify-between items-start [gap:8px] [padding:12px_14px_8px]">
-                    <div>
-                      <div className="[font-family:var(--font-body)] font-extrabold [font-size:1.6rem] [letter-spacing:-0.02em] [line-height:1]">{t.orderNumber.replace('BS-', '')}</div>
-                      <div className="small">{t.customerFirstName}</div>
+                  <div className="grid [gap:8px] [padding:12px_14px_8px]">
+                    {/* Readable from across the kitchen: number left, the clock that matters right. */}
+                    <div className="flex justify-between items-start [gap:10px]">
+                      <div className="[font-family:var(--font-body)] font-extrabold [font-size:2.5rem] [letter-spacing:-0.02em] [line-height:1] tabular-nums">{t.orderNumber.replace('BS-', '')}</div>
+                      <div className="text-right [line-height:1.2]">
+                        <div className={`font-extrabold [font-size:1.3rem] tabular-nums ${late ? '[color:var(--status-urgent)]' : '[color:var(--espresso)]'}`}>
+                          {t.kitchenStatus === 'ready' ? `Ready ${mins(t.readyAt, now) ?? 0} min` : dueIn >= 0 ? `Due in ${dueIn} min` : `${-dueIn} min overdue`}
+                        </div>
+                        <div className="[font-size:1rem] [color:#5a4d41]">
+                          Due {formatLocalTime(t.promisedAt, timezone)}
+                          {t.isAsap ? '' : ' (scheduled)'}
+                        </div>
+                      </div>
                     </div>
-                    <div className="[font-size:0.92rem] [color:#5a4d41] text-right">
+                    <div className="flex flex-wrap items-center [gap:6px]">
+                      <span className="[font-size:1.1rem] font-bold [margin-right:4px] [min-width:0] [overflow-wrap:anywhere]">{t.customerFirstName}</span>
                       <span className={`inline-block font-extrabold [font-size:0.85rem] [padding:2px_8px] [border-radius:6px] [background:#efe6d8] [&.delivery]:[background:var(--info-bg)] [&.delivery]:[color:#1b4db5] [&.late]:[background:var(--status-urgent)] [&.late]:[color:#fff] ${t.fulfillmentType === 'delivery' ? 'delivery' : ''}`}>{t.fulfillmentType === 'delivery' ? 'DELIVERY' : 'PICKUP'}</span>{' '}
                       {waitingAccept && <span className="inline-block font-extrabold [font-size:0.85rem] [padding:2px_8px] [border-radius:6px] [background:var(--status-new)] [color:#fff]">NOT ACCEPTED</span>}{' '}
                       {late && <span className="inline-block font-extrabold [font-size:0.85rem] [padding:2px_8px] [border-radius:6px] [background:#efe6d8] [&.delivery]:[background:var(--info-bg)] [&.delivery]:[color:#1b4db5] [&.late]:[background:var(--status-urgent)] [&.late]:[color:#fff] late">LATE</span>}
-                      <div>
-                        Due {formatLocalTime(t.promisedAt, timezone)}
-                        {t.isAsap ? '' : ' (scheduled)'}
-                      </div>
                     </div>
                   </div>
                   <ul className="list-none m-0 [padding:4px_14px_10px] [&_li]:[padding:8px_0] [&_li]:[border-bottom:1px_dashed_#d9ccb6] [&_li:last-child]:[border-bottom:0]">
                     {t.items.map((it) => (
                       <li key={it.id}>
-                        <span className="font-extrabold [font-size:1.25rem] [margin-right:6px]">{it.quantity}×</span>
-                        <span className="font-extrabold [font-size:1.15rem]">{it.itemName}</span>
-                        {it.variantName && <span className="font-extrabold [font-size:1.15rem]"> ({it.variantName})</span>}
-                        {it.modifiers.length > 0 && <div className="[font-size:0.98rem] [color:#3d3025] [margin-top:2px]">{it.modifiers.map((m) => m.name).join(' · ')}</div>}
+                        <span className="font-extrabold [font-size:1.45rem] [margin-right:6px] tabular-nums">{it.quantity}×</span>
+                        <span className="font-extrabold [font-size:1.35rem] [line-height:1.25]">{it.itemName}</span>
+                        {it.variantName && <span className="font-extrabold [font-size:1.35rem] [line-height:1.25]"> ({it.variantName})</span>}
+                        {it.modifiers.length > 0 && <div className="[font-size:1.1rem] [color:#3d3025] [margin-top:2px]">{it.modifiers.map((m) => m.name).join(' · ')}</div>}
                         {it.instructions && <div className="[background:var(--caramel-tint)] [border-left:5px_solid_var(--caramel)] [padding:6px_10px] [margin-top:6px] font-bold">“{it.instructions}”</div>}
                       </li>
                     ))}
                   </ul>
                   {t.customerNotes && <div className="[background:var(--caramel-tint)] [border-left:5px_solid_var(--caramel)] [padding:6px_10px] [margin-top:6px] font-bold" style={{ margin: '0 14px 10px' }}>Order note: “{t.customerNotes}”</div>}
                   {allergens.length > 0 && <div className="[background:#fde8e6] [border-left:5px_solid_var(--danger)] [padding:6px_10px] [margin-top:6px] font-extrabold [color:#7a1a12]" style={{ margin: '0 14px 10px' }}>Contains: {allergens.join(', ')}</div>}
-                  <div className="flex justify-between items-center [padding:8px_14px] [background:#f1eadb] font-bold tabular-nums">
-                    <span>{t.kitchenStatus === 'preparing' ? `Cooking ${prep ?? 0} min` : t.kitchenStatus === 'ready' ? `Ready ${mins(t.readyAt, now) ?? 0} min` : `Waiting ${waiting ?? 0} min`}</span>
-                    <span style={{ color: late ? 'var(--status-urgent)' : undefined, fontWeight: late ? 800 : undefined }}>{t.kitchenStatus === 'ready' ? (t.fulfillmentType === 'delivery' ? (t.riderAssigned ? 'Rider assigned' : 'No rider yet') : 'Awaiting customer') : dueIn >= 0 ? `Due in ${dueIn} min` : `${-dueIn} min overdue`}</span>
+                  <div className="[padding:8px_14px] [background:#f1eadb] font-bold [font-size:1.05rem] tabular-nums">
+                    {t.kitchenStatus === 'preparing' ? `Cooking ${prep ?? 0} min` : t.kitchenStatus === 'ready' ? (t.fulfillmentType === 'delivery' ? (t.riderAssigned ? 'Rider assigned' : 'No rider yet') : 'Awaiting customer') : `Waiting ${waiting ?? 0} min`}
                   </div>
                   {!readOnly && data?.canAssign && t.fulfillmentType === 'delivery' && t.kitchenStatus === 'ready' && ['unassigned', 'assigned'].includes(t.fulfillmentStatus) && (
                     <div className="grid [gap:8px] [margin:12px_0_0] [padding:10px_12px] [background:var(--ivory-2)] [border:1px_solid_var(--line)] [border-radius:12px]">
@@ -450,7 +480,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                         <span className="inline-flex items-center [gap:6px] [font-size:.78rem] font-bold [letter-spacing:.06em] uppercase [color:var(--muted)]"><Icon name="bike" size={16} /> Rider</span>
                         <span className={`[font-size:.82rem] font-bold [padding:3px_10px] rounded-full [background:var(--caramel-tint)] [color:var(--caramel-text)] [&.set]:[background:var(--sage-tint)] [&.set]:[color:var(--sage-dark)]${t.riderName ? ' set' : ''}`}>{t.riderName ?? 'Not assigned'}</span>
                       </div>
-                      <select id={`rd-${t.id}`} className="[width:100%] [height:40px] [padding:0_12px] [font:inherit] [&]:[font-size:.92rem] [color:var(--ink)] [background:#fff] [border:1px_solid_var(--line-strong)] [border-radius:10px] cursor-pointer focus-visible:[outline:2px_solid_var(--sage-dark)] [&]:focus-visible:[outline-offset:1px]" aria-label={`Rider for order ${t.orderNumber}`} defaultValue="" disabled={!!busy} onChange={(e) => { const v = e.target.value; if (v) { void act(t, 'assign', undefined, v); e.target.value = ''; } }}>
+                      <select id={`rd-${t.id}`} className="[width:100%] [height:48px] [padding:0_12px] [font:inherit] [&]:[font-size:1rem] [color:var(--ink)] [background:#fff] [border:1px_solid_var(--line-strong)] [border-radius:10px] cursor-pointer focus-visible:[outline:2px_solid_var(--sage-dark)] [&]:focus-visible:[outline-offset:1px]" aria-label={`Rider for order ${t.orderNumber}`} defaultValue="" disabled={!!busy} onChange={(e) => { const v = e.target.value; if (v) { void act(t, 'assign', undefined, v); e.target.value = ''; } }}>
                         <option value="">{t.riderName ? 'Change rider…' : 'Assign a rider now…'}</option>
                         {(data?.riders ?? []).filter((r) => r.online).map((r) => <option key={r.id} value={r.id}>{r.name}{r.active ? ` (${r.active} active)` : ''}</option>)}
                       </select>
@@ -458,7 +488,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                     </div>
                   )}
                   {!readOnly && (
-                    <div className="grid [grid-auto-flow:column] [gap:8px] [padding:10px_14px_14px] [&_.btn]:[min-height:56px] [&_.btn]:[font-size:1.1rem]">
+                    <div className="flex flex-wrap [gap:8px] [padding:10px_14px_14px] [&_.btn]:[flex:1_1_auto] [&_.btn]:[min-height:56px] [&_.btn]:[font-size:1.1rem]">
                       {t.kitchenStatus === 'new' && (
                         <button className="btn primary" disabled={!!busy} onClick={() => act(t, 'accept')}>
                           Accept

@@ -84,7 +84,7 @@ export const C_IE_ROWS =
 export const C_JOB_CHIP =
   "inline-flex items-center [padding:5px_12px] rounded-full [font-size:.84rem] font-bold [&.fee]:[background:var(--sage-tint)] [&.fee]:[color:var(--sage-dark)] [&.cash]:[background:var(--caramel-tint)] [&.cash]:[color:var(--caramel-text)]";
 export const C_JOB_ICO =
-  "grid place-items-center [width:40px] [height:40px] rounded-[50%] [background:var(--sage-tint)] [color:var(--sage-dark)] border-0 hover:[background:var(--sage-dark)] hover:[color:#fff]";
+  "grid place-items-center [width:48px] [height:48px] rounded-[50%] [background:var(--sage-tint)] [color:var(--sage-dark)] border-0 hover:[background:var(--sage-dark)] hover:[color:#fff]";
 export const C_KPI =
   "[background:var(--surface)] [border:1px_solid_var(--line)] [border-radius:var(--r-md)] [padding:14px] no-underline block [&_.v]:[font-family:var(--font-body)] [&_.v]:[font-size:1.9rem] [&_.v]:font-extrabold [&_.v]:[line-height:1.1] [&_.v]:tabular-nums [&_.l]:[color:var(--muted)] [&_.l]:[font-size:0.9rem] [.ov-kpis_&]:[padding:clamp(16px,_2vw,_24px)]";
 export const C_LIVE_PILL =

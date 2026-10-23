@@ -10,6 +10,7 @@ import { LogoutButton } from '../LoginForm';
 import { C_BAR_CARET, C_BAR_DROPDOWN, C_BAR_DROPDOWN_OUT, C_JOB_CHIP, C_JOB_ICO, C_RP_GROUP, C_SIDE_AVATAR } from '@/components/ui';
 
 const STEPS = ['Accepted', 'At restaurant', 'Picked up', 'Arrived'];
+const HISTORY_LABELS: Record<string, string> = { completed: 'Delivered', failed: 'Failed', declined: 'Declined', cancelled: 'Cancelled' };
 function stepIndex(fs: string) {
   if (fs === 'arrived') return 3;
   if (fs === 'picked_up' || fs === 'on_the_way') return 2;
@@ -251,6 +252,7 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
 
   async function toggleDuty() {
     const next = !onDuty;
+    if (!next && activeAccepted && !window.confirm('You have a delivery in progress. Going off duty stops sharing your location with the customer and the restaurant. Go off duty anyway?')) return;
     setOnDuty(next);
     try {
       await postJson('/api/rider/heartbeat', { onDuty: next });
@@ -286,7 +288,7 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
         <div className="relative [min-width:0]" ref={menuRef}>
           <button type="button" className="flex items-center [gap:10px] [padding:4px_8px_4px_4px] border-0 rounded-full bg-transparent [color:#fff] [font:inherit] text-left cursor-pointer [max-width:100%] hover:[background:rgba(255,_255,_255,_.12)] aria-expanded:[background:rgba(255,_255,_255,_.12)] rt-user" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
             <span className={C_SIDE_AVATAR} aria-hidden="true">{name.trim().charAt(0).toUpperCase()}</span>
-            <span className="grid [line-height:1.2] [min-width:0] [&_strong]:[font-size:.98rem] [&_strong]:whitespace-nowrap [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_span]:[font-size:.8rem] [&_span]:[color:rgba(255,_255,_255,_.72)]">
+            <span className="grid [line-height:1.2] [min-width:0] [&_strong]:[font-size:.98rem] [&_strong]:whitespace-nowrap [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_span]:[font-size:.875rem] [&_span]:[color:rgba(255,_255,_255,_.72)]">
               <strong>{name}</strong>
               <span>{roleLabel}</span>
             </span>
@@ -307,13 +309,13 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
           )}
         </div>
         <div className="flex items-center [gap:10px] flex-none">
-          <div className="grid text-right [line-height:1.2] [&_strong]:[font-size:.95rem] [&_span]:[font-size:.74rem] [&_span]:[color:rgba(255,_255,_255,_.7)] [&_span.ok::before]:[content:''] [&_span.ok::before]:inline-block [&_span.ok::before]:[width:7px] [&_span.ok::before]:[height:7px] [&_span.ok::before]:[margin-right:5px] [&_span.ok::before]:rounded-[50%] [&_span.ok::before]:[background:#6fcf8f] [&_span.ok::before]:[vertical-align:1px] rt-duty-text">
+          <div className="grid text-right [line-height:1.2] [&_strong]:[font-size:.95rem] [&_span]:[font-size:.875rem] [&_span]:[color:rgba(255,_255,_255,_.7)] [&_span.ok::before]:[content:''] [&_span.ok::before]:inline-block [&_span.ok::before]:[width:7px] [&_span.ok::before]:[height:7px] [&_span.ok::before]:[margin-right:5px] [&_span.ok::before]:rounded-[50%] [&_span.ok::before]:[background:#6fcf8f] [&_span.ok::before]:[vertical-align:1px] rt-duty-text">
             <strong>{onDuty ? 'On duty' : 'Off duty'}</strong>
             <span role="status" className={status === 'live' && !staleData ? 'ok' : `[.rt-duty-text_span&::before]:[content:''] [.rt-duty-text_span&::before]:inline-block [.rt-duty-text_span&::before]:[width:7px] [.rt-duty-text_span&::before]:[height:7px] [.rt-duty-text_span&::before]:[margin-right:5px] [.rt-duty-text_span&::before]:rounded-[50%] [.rt-duty-text_span&::before]:[vertical-align:1px] [.rt-duty-text_span&::before]:[background:#f0a35e]`}>
               {signedOut ? 'Signed out' : status === 'live' && !staleData ? 'Connected' : staleData ? 'Connection problem' : 'Reconnecting…'}
             </span>
           </div>
-          <button className="relative [width:64px] [height:36px] rounded-full border-0 [background:#9a9288] cursor-pointer flex-none [&::after]:[content:''] [&::after]:absolute [&::after]:[top:4px] [&::after]:[left:4px] [&::after]:[width:28px] [&::after]:[height:28px] [&::after]:rounded-[50%] [&::after]:[background:#fff] [&::after]:[transition:transform_0.15s] aria-checked:[background:var(--status-ready)] [&[aria-checked=true]::after]:[transform:translateX(28px)]" role="switch" aria-checked={!!onDuty} aria-label="On duty" onClick={toggleDuty} disabled={onDuty === null} />
+          <button className="relative [width:76px] [height:44px] rounded-full border-0 [background:#6b635b] cursor-pointer flex-none [&::after]:[content:''] [&::after]:absolute [&::after]:[top:4px] [&::after]:[left:4px] [&::after]:[width:36px] [&::after]:[height:36px] [&::after]:rounded-[50%] [&::after]:[background:#fff] [&::after]:[transition:transform_0.15s] aria-checked:[background:var(--status-ready)] [&[aria-checked=true]::after]:[transform:translateX(32px)]" role="switch" aria-checked={!!onDuty} aria-label="On duty" onClick={toggleDuty} disabled={onDuty === null} />
         </div>
       </header>
 
@@ -346,7 +348,8 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
 
       {tab === 'jobs' && (
         <>
-          {data?.stats && (
+          {/* Earnings stay out of the way during a delivery; the Earnings tab still has them. */}
+          {data?.stats && !activeAccepted && (
             <section className="[margin:14px] [padding:18px] grid [gap:14px] [background:var(--espresso)] [color:#fff] [border-radius:20px] [box-shadow:0_10px_24px_rgba(53,_37,_31,_.18)]" aria-label="Today">
               <div className="grid [gap:2px] [&_span]:[font-size:.78rem] [&_span]:font-bold [&_span]:[letter-spacing:.08em] [&_span]:uppercase [&_span]:[color:rgba(255,_255,_255,_.7)] [&_strong]:[font-size:2.1rem] [&_strong]:[line-height:1.1]">
                 <span>Earned today</span>
@@ -387,6 +390,10 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
             const toRestaurant = directionsUrl(r?.lat ?? null, r?.lng ?? null, r?.addressLine);
             const toCustomer = directionsUrl(a.lat, a.lng, [a.addressLine, a.landmark].filter(Boolean).join(', '));
             const isBusy = (x: string) => busy === a.orderId + x;
+            const toRestaurantStage = fs === 'accepted' || fs === 'assigned' || fs === 'at_restaurant';
+            const outStage = ['picked_up', 'on_the_way', 'arrived'].includes(fs);
+            const navUrl = toRestaurantStage ? toRestaurant : outStage ? toCustomer : null;
+            const kitchenReady = a.kitchenStatus === 'ready';
             return (
               <article key={a.orderId} className="[background:var(--surface)] [border-radius:var(--r-lg)] [margin:14px_12px] [border:1px_solid_var(--line)] overflow-hidden job" aria-label={`Delivery ${a.orderNumber}`}>
                 <div className="[padding:14px_16px] flex justify-between items-center [border-bottom:1px_solid_var(--line)] [.rider-app_&]:[padding:14px_16px_12px] [.rider-app_&]:[border-bottom:0]">
@@ -397,7 +404,7 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
                   <span className={`badge ${a.assignmentStatus === 'offered' ? 'warn' : 'info'}`}>{a.assignmentStatus === 'offered' ? 'New offer' : FULFILLMENT_STATUS_LABELS[fs] ?? fs}</span>
                 </div>
                 {a.assignmentStatus === 'accepted' && (
-                  <ol className="list-none m-0 [padding:0_16px_14px] grid [grid-template-columns:repeat(4,_1fr)] [gap:4px] [border-bottom:1px_solid_var(--line)] [&_li]:relative [&_li]:grid [&_li]:[justify-items:center] [&_li]:[gap:6px] [&_li]:[padding-top:2px] [&_li]:[font-size:.68rem] [&_li]:font-semibold [&_li]:text-center [&_li]:[color:var(--muted)] [&_li_span]:relative [&_li_span]:[z-index:1] [&_li_span]:[width:14px] [&_li_span]:[height:14px] [&_li_span]:rounded-[50%] [&_li_span]:[background:#fff] [&_li_span]:[border:2px_solid_var(--line-strong)] [&_li::before]:[content:''] [&_li::before]:absolute [&_li::before]:[top:9px] [&_li::before]:[right:50%] [&_li::before]:[width:100%] [&_li::before]:[height:2px] [&_li::before]:[background:var(--line-strong)] [&_li:first-child::before]:hidden [&_li.done_span]:[background:var(--sage-dark)] [&_li.done_span]:[border-color:var(--sage-dark)] [&_li.done::before]:[background:var(--sage-dark)] [&_li.now::before]:[background:var(--sage-dark)] [&&_li.now_span]:[background:#fff] [&_li.now_span]:[border-color:var(--sage-dark)] [&_li.now_span]:[box-shadow:0_0_0_4px_var(--sage-tint)] [&_li.now]:[color:var(--ink)] [&_li.done]:[color:var(--ink)]" aria-label="Progress">
+                  <ol className="list-none m-0 [padding:0_16px_14px] grid [grid-template-columns:repeat(4,_1fr)] [gap:4px] [border-bottom:1px_solid_var(--line)] [&_li]:relative [&_li]:grid [&_li]:[justify-items:center] [&_li]:[gap:6px] [&_li]:[padding-top:2px] [&_li]:[font-size:.875rem] [&_li]:[line-height:1.2] [&_li]:font-semibold [&_li]:text-center [&_li]:[color:var(--muted)] [&_li_span]:relative [&_li_span]:[z-index:1] [&_li_span]:[width:14px] [&_li_span]:[height:14px] [&_li_span]:rounded-[50%] [&_li_span]:[background:#fff] [&_li_span]:[border:2px_solid_var(--line-strong)] [&_li::before]:[content:''] [&_li::before]:absolute [&_li::before]:[top:9px] [&_li::before]:[right:50%] [&_li::before]:[width:100%] [&_li::before]:[height:2px] [&_li::before]:[background:var(--line-strong)] [&_li:first-child::before]:hidden [&_li.done_span]:[background:var(--sage-dark)] [&_li.done_span]:[border-color:var(--sage-dark)] [&_li.done::before]:[background:var(--sage-dark)] [&_li.now::before]:[background:var(--sage-dark)] [&&_li.now_span]:[background:#fff] [&_li.now_span]:[border-color:var(--sage-dark)] [&_li.now_span]:[box-shadow:0_0_0_4px_var(--sage-tint)] [&_li.now]:[color:var(--ink)] [&_li.done]:[color:var(--ink)]" aria-label="Progress">
                     {STEPS.map((label, i) => (
                       <li key={label} className={i < stepIndex(fs) ? 'done' : i === stepIndex(fs) ? 'now' : ''}>
                         <span aria-hidden="true" />
@@ -454,12 +461,7 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
                       )}
                       {a.instructions && <div className="alert info small" style={{ margin: 0 }}>{a.instructions}</div>}
                       {!a.locationVerified && <div className="alert warn small" style={{ margin: 0 }}>Location not GPS-verified. Call the customer to confirm.</div>}
-                      {a.cashToCollectPesewas > 0 && ['picked_up', 'on_the_way', 'arrived'].includes(fs) && (
-                        <button className="btn" disabled={isBusy('cash')} onClick={() => act(a, 'cash', { amountPesewas: a.cashToCollectPesewas }, 'Cash recorded')}>
-                          I’ve received {formatGHS(a.cashToCollectPesewas)} cash
-                        </button>
-                      )}
-                      {a.kitchenStatus !== 'ready' && a.kitchenStatus !== 'handed_off' && <p className="hint" style={{ margin: 0 }}>Food not ready yet ({a.kitchenStatus}).</p>}
+                      {a.kitchenStatus !== 'ready' && a.kitchenStatus !== 'handed_off' && <p className="hint" style={{ margin: 0 }}>{a.kitchenStatus === 'preparing' ? 'The kitchen is preparing the food.' : 'The kitchen hasn’t started the food yet.'}</p>}
                     </>
                   )}
                 </div>
@@ -471,7 +473,7 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
                       </button>
                       {declineFor === a.orderId ? (
                         <div className="stack" style={{ ['--stack' as string]: '8px' }}>
-                          <input className="input" placeholder="Reason (e.g. bike problem)" value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} />
+                          <input className="input" aria-label="Why are you declining?" placeholder="Reason (e.g. bike problem)" value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} />
                           <button className="btn danger" disabled={!declineReason.trim()} onClick={async () => (await act(a, 'decline', { reason: declineReason }, 'Declined')) && (setDeclineFor(null), setDeclineReason(''))}>
                             Decline
                           </button>
@@ -483,40 +485,39 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
                       )}
                     </>
                   )}
+                  {/* One big next step per stage; navigation is secondary and "can't deliver" is a quiet link. */}
                   {a.assignmentStatus === 'accepted' && (
                     <>
-                      {(fs === 'accepted' || fs === 'assigned') && toRestaurant && (
-                        <a className="btn leaf" href={toRestaurant} target="_blank" rel="noopener noreferrer">
-                          <Icon name="nav" /> Navigate to restaurant
-                        </a>
+                      {toRestaurantStage && (kitchenReady || fs !== 'accepted') && (
+                        <button className="btn primary" disabled={isBusy('picked_up') || !kitchenReady} onClick={() => act(a, 'picked_up', {}, 'Picked up. Safe riding!')}>
+                          {kitchenReady ? 'I’ve picked up the food' : 'Waiting for the kitchen'}
+                        </button>
                       )}
-                      {fs === 'accepted' && (
-                        <button className="btn" disabled={isBusy('at_restaurant')} onClick={() => act(a, 'at_restaurant', {}, 'Marked at restaurant')}>
+                      {fs === 'accepted' && !kitchenReady && (
+                        <button className="btn primary" disabled={isBusy('at_restaurant')} onClick={() => act(a, 'at_restaurant', {}, 'Marked at restaurant')}>
                           I’m at the restaurant
                         </button>
                       )}
-                      {(fs === 'accepted' || fs === 'at_restaurant' || fs === 'assigned') && (
-                        <button className="btn primary" disabled={isBusy('picked_up') || a.kitchenStatus !== 'ready'} onClick={() => act(a, 'picked_up', {}, 'Picked up. Safe riding!')}>
-                          {a.kitchenStatus === 'ready' ? 'I’ve picked up the food' : 'Waiting for the kitchen'}
+                      {fs === 'picked_up' && (
+                        <button className="btn primary" disabled={isBusy('on_the_way')} onClick={() => act(a, 'on_the_way', {}, 'On the way')}>
+                          Start trip
                         </button>
                       )}
-                      {['picked_up', 'on_the_way', 'arrived'].includes(fs) && (
+                      {fs === 'on_the_way' && (
+                        <button className="btn primary" disabled={isBusy('arrived')} onClick={() => act(a, 'arrived', {}, 'Marked arrived')}>
+                          I’ve arrived
+                        </button>
+                      )}
+                      {fs === 'arrived' && a.cashToCollectPesewas > 0 && (
                         <>
-                          {toCustomer && (
-                            <a className="btn leaf" href={toCustomer} target="_blank" rel="noopener noreferrer">
-                              <Icon name="nav" /> Navigate to customer
-                            </a>
-                          )}
-                          {fs === 'picked_up' && (
-                            <button className="btn" disabled={isBusy('on_the_way')} onClick={() => act(a, 'on_the_way', {}, 'On the way')}>
-                              Start trip
-                            </button>
-                          )}
-                          {fs !== 'arrived' && (
-                            <button className="btn" disabled={isBusy('arrived')} onClick={() => act(a, 'arrived', {}, 'Marked arrived')}>
-                              I’ve arrived
-                            </button>
-                          )}
+                          <button className="btn primary" disabled={isBusy('cash')} onClick={() => act(a, 'cash', { amountPesewas: a.cashToCollectPesewas }, 'Cash recorded')}>
+                            I’ve received {formatGHS(a.cashToCollectPesewas)} cash
+                          </button>
+                          <p className="hint" style={{ margin: 0 }}>Next: enter the customer’s PIN.</p>
+                        </>
+                      )}
+                      {fs === 'arrived' && a.cashToCollectPesewas === 0 && (
+                        <>
                           {a.pinLocked ? (
                             <p className="alert error small">PIN locked after too many wrong attempts. Call the restaurant to confirm this delivery.</p>
                           ) : (
@@ -536,16 +537,25 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
                               />
                               <button
                                 className="btn primary"
-                                disabled={(pin[a.orderId] ?? '').length !== 4 || isBusy('deliver') || a.cashToCollectPesewas > 0}
+                                disabled={(pin[a.orderId] ?? '').length !== 4 || isBusy('deliver')}
                                 onClick={async () => (await act(a, 'deliver', { pin: pin[a.orderId] }, 'Delivered!')) && setPin({ ...pin, [a.orderId]: '' })}
                               >
-                                {a.cashToCollectPesewas > 0 ? 'Record the cash first' : 'Confirm delivery'}
+                                Confirm delivery
                               </button>
                             </div>
                           )}
+                        </>
+                      )}
+                      {navUrl && (
+                        <a className="btn" href={navUrl} target="_blank" rel="noopener noreferrer">
+                          <Icon name="nav" /> {toRestaurantStage ? 'Navigate to restaurant' : 'Navigate to customer'}
+                        </a>
+                      )}
+                      {outStage && (
+                        <>
                           {failFor === a.orderId ? (
                             <div className="stack" style={{ ['--stack' as string]: '8px' }}>
-                              <select className="select" value={failReason} onChange={(e) => setFailReason(e.target.value)}>
+                              <select className="select" aria-label="Why couldn’t you deliver?" value={failReason} onChange={(e) => setFailReason(e.target.value)}>
                                 <option value="">Why couldn’t you deliver?</option>
                                 <option>Customer unreachable</option>
                                 <option>Customer not at address</option>
@@ -562,7 +572,7 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
                               </button>
                             </div>
                           ) : (
-                            <button className="btn ghost" onClick={() => setFailFor(a.orderId)}>
+                            <button type="button" className="[justify-self:center] [min-height:44px] [padding:0_12px] border-0 bg-transparent [color:var(--danger)] [font:inherit] [&]:font-semibold underline [text-underline-offset:3px] cursor-pointer" onClick={() => setFailFor(a.orderId)}>
                               I can’t deliver this order
                             </button>
                           )}
@@ -717,7 +727,7 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
                         <div className="small muted">{formatLocalTime(h.assignedAt, timezone)}</div>
                       </td>
                       <td>
-                        {h.status}
+                        {HISTORY_LABELS[h.status] ?? h.status}
                         {h.endReason && <div className="small muted">{h.endReason}</div>}
                       </td>
                       <td className="num">{h.riderFeePesewas != null ? formatGHS(h.riderFeePesewas) : ''}</td>
@@ -730,7 +740,7 @@ export function RiderApp({ name, timezone, roleLabel = 'Rider' }: { name: string
         </div>
       )}
 
-      <nav className="fixed [bottom:0] [left:50%] [transform:translateX(-50%)] [width:100%] [max-width:480px] [z-index:30] grid [grid-template-columns:repeat(4,_1fr)] [padding:8px_8px_calc(8px_+_env(safe-area-inset-bottom))] [background:#fff] [border-top:1px_solid_var(--line)] [box-shadow:0_-6px_20px_rgba(53,_37,_31,_.08)] [&_button]:grid [&_button]:[justify-items:center] [&_button]:[gap:3px] [&_button]:[padding:6px_4px] [&_button]:border-0 [&_button]:bg-transparent [&_button]:[font:inherit] [&]:[&_button]:[font-size:.72rem] [&]:[&_button]:font-bold [&_button]:[color:var(--muted)] [&_button]:cursor-pointer [&_button]:[border-radius:12px] [&_button[aria-current=page]]:[color:var(--espresso)] [@media(max-height:480px)_and_(orientation:landscape)]:[padding-top:4px] [@media(max-height:480px)_and_(orientation:landscape)]:[padding-bottom:calc(4px_+_env(safe-area-inset-bottom))] rider-nav" aria-label="Rider app">
+      <nav className="fixed [bottom:0] [left:50%] [transform:translateX(-50%)] [width:100%] [max-width:480px] [z-index:30] grid [grid-template-columns:repeat(4,_1fr)] [padding:8px_8px_calc(8px_+_env(safe-area-inset-bottom))] [background:#fff] [border-top:1px_solid_var(--line)] [box-shadow:0_-6px_20px_rgba(53,_37,_31,_.08)] [&_button]:grid [&_button]:[justify-items:center] [&_button]:[gap:3px] [&_button]:[padding:6px_4px] [&_button]:border-0 [&_button]:bg-transparent [&_button]:[font:inherit] [&]:[&_button]:[font-size:.875rem] [&]:[&_button]:font-bold [&_button]:[color:var(--muted)] [&_button]:cursor-pointer [&_button]:[border-radius:12px] [&_button[aria-current=page]]:[color:var(--espresso)] [@media(max-height:480px)_and_(orientation:landscape)]:[padding-top:4px] [@media(max-height:480px)_and_(orientation:landscape)]:[padding-bottom:calc(4px_+_env(safe-area-inset-bottom))] rider-nav" aria-label="Rider app">
         {([['jobs', 'Deliveries', 'bike'], ['earnings', 'Earnings', 'wallet'], ['history', 'History', 'clock'], ['profile', 'Profile', 'user']] as const).map(([k, label, icon]) => (
           <button key={k} type="button" aria-current={tab === k ? 'page' : undefined} onClick={() => setTab(k)}>
             <span className="[.rider-nav_button[aria-current=page]_&]:[background:var(--sage-tint)] [.rider-nav_button[aria-current=page]_&]:[color:var(--sage-dark)] relative grid place-items-center [width:52px] [height:30px] rounded-full">
