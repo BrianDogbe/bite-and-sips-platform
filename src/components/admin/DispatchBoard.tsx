@@ -33,8 +33,8 @@ function ago(iso: string | Date | null, now: number) {
 /** A visible label above a dispatch input; placeholders alone vanish once someone starts typing. */
 function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   return (
-    <div className="grid [gap:4px]">
-      <label className="label" htmlFor={id}>
+    <div className="field">
+      <label htmlFor={id}>
         {label}
       </label>
       {children}
@@ -131,8 +131,8 @@ export function DispatchBoard({ timezone }: { timezone: string }) {
                     {g.list.map((o) => (
                       <tr
                         key={o.id}
-                        aria-selected={selected === o.id}
-                        className={`cursor-pointer aria-selected:[background:#eef6f2] aria-selected:[&>td:first-child]:[box-shadow:inset_4px_0_0_var(--sage-dark)]${o.needsAttention ? ' attention' : ''}`}
+                        aria-current={selected === o.id ? 'true' : undefined}
+                        className={`cursor-pointer aria-[current=true]:[background:#eef6f2] aria-[current=true]:[&>td:first-child]:[box-shadow:inset_4px_0_0_var(--sage-dark)]${o.needsAttention ? ' attention' : ''}`}
                         onClick={() => (setSelected(o.id), setMsg(null), setForm({}))}
                       >
                         <td>

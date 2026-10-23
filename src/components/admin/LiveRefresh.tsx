@@ -27,8 +27,9 @@ export function LiveRefresh({ topics, pollMs = 30000 }: { topics: string[]; poll
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topics.join(','), pollMs]);
   return (
-    <span className={`${C_LIVE_PILL} ${live ? '' : 'stale'}`} role="status" title={new Date(at).toLocaleTimeString()}>
-      <span className="dot" aria-hidden="true" /> {live ? 'Live' : 'Auto-refresh'}
+    // Same wording as the Dispatch pill; the time is visible because tablets can't show a hover title.
+    <span className={`${C_LIVE_PILL} ${live ? '' : 'stale'}`} role="status" suppressHydrationWarning>
+      <span className="dot" aria-hidden="true" /> {live ? 'Live' : `Last updated ${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
     </span>
   );
 }

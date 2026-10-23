@@ -258,7 +258,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
         <span className={C_BRAND}>
           <BrandMark /> Kitchen
         </span>
-        <span className={`inline-flex items-center [gap:8px] font-bold [padding:6px_12px] rounded-full [background:var(--ok-bg)] [color:var(--ok)] [&_.dot]:[width:10px] [&_.dot]:[height:10px] [&_.dot]:rounded-[50%] [&_.dot]:[background:var(--status-ready)] [&.stale]:[background:var(--warn-bg)] [&.stale]:[color:var(--warn)] [&.stale_.dot]:[background:var(--status-prep)] [&.down]:[background:var(--danger-bg)] [&.down]:[color:var(--danger)] [&&.down_.dot]:[background:var(--status-urgent)] ${connClass}`} role="status" aria-live="polite">
+        <span className={`inline-flex items-center [gap:8px] font-bold [padding:6px_12px] rounded-full [background:var(--ok-bg)] [color:#10522f] [&_.dot]:[width:10px] [&_.dot]:[height:10px] [&_.dot]:rounded-[50%] [&_.dot]:[background:var(--status-ready)] [&.stale]:[background:var(--warn-bg)] [&.stale]:[color:#5e3a00] [&.stale_.dot]:[background:var(--status-prep)] [&.down]:[background:var(--danger-bg)] [&.down]:[color:#7a1a12] [&&.down_.dot]:[background:var(--status-urgent)] ${connClass}`} role="status" aria-live="polite">
           <span className="dot" aria-hidden="true" /> {connText}
         </span>
         {unacceptedCount > 0 && (
@@ -273,7 +273,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
         )}
         <span className="grow" />
         <div className="flex items-center [gap:10px] flex-wrap">
-        <button className={`btn sm${(data?.alerts.length ?? 0) > 0 ? ' [.kds-top_.btn&]:[border-color:#f2b8b2] [.kds-top_.btn&]:[background:var(--danger-bg)] [.kds-top_.btn&]:[color:var(--danger)]' : ''}`} aria-expanded={alertsOpen} onClick={() => setAlertsOpen((x) => !x)}>
+        <button className={`btn sm${(data?.alerts.length ?? 0) > 0 ? ' [.kds-top_.btn&]:[border-color:#f2b8b2] [.kds-top_.btn&]:[background:var(--danger-bg)] [.kds-top_.btn&]:[color:#7a1a12]' : ''}`} aria-expanded={alertsOpen} onClick={() => setAlertsOpen((x) => !x)}>
           <Icon name="alert" size={16} /> Reported problems ({data?.alerts.length ?? 0})
         </button>
         {!readOnly && canMarkSoldOut && (
@@ -288,7 +288,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
           </button>
         )}
         {!readOnly && (
-          <button className={`btn sm${sound && audioOk ? '' : ' [.kds-top_.btn&]:[background:var(--warn-bg)] [.kds-top_.btn&]:[border-color:#f0d18f] [.kds-top_.btn&]:[color:var(--warn)]'}`} onClick={toggleSound} aria-pressed={sound && audioOk} title="New-order sound">
+          <button className={`btn sm${sound && audioOk ? '' : ' [.kds-top_.btn&]:[background:var(--warn-bg)] [.kds-top_.btn&]:[border-color:#f0d18f] [.kds-top_.btn&]:[color:#5e3a00]'}`} onClick={toggleSound} aria-pressed={sound && audioOk} title="New-order sound">
             <Icon name={sound && audioOk ? 'volume' : 'mute'} size={18} /> {!sound ? 'Sound off — tap to turn on' : audioOk ? 'Sound on' : 'Sound blocked — tap to allow'}
           </button>
         )}
@@ -432,7 +432,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
               return (
                 <Fragment key={t.id}>
                 {groupStart && (
-                  <h3 className="flex justify-between items-center [margin:4px_2px_8px] [font-size:1rem] [color:var(--espresso)]">
+                  <h3 className={`flex justify-between items-center [margin:4px_2px_8px] [font-size:1rem] [color:var(--espresso)]${i > 0 ? ' [margin-top:20px]' : ''}`}>
                     {waitingAccept ? 'Waiting to accept' : 'Accepted — not started'} <span className="tabular-nums">{groupSize}</span>
                   </h3>
                 )}

@@ -82,7 +82,7 @@ export const C_IE_ROW =
 export const C_IE_ROWS =
   "grid [gap:12px] [margin-bottom:14px]";
 export const C_JOB_CHIP =
-  "inline-flex items-center [padding:5px_12px] rounded-full [font-size:.84rem] font-bold [&.fee]:[background:var(--sage-tint)] [&.fee]:[color:var(--sage-dark)] [&.cash]:[background:var(--caramel-tint)] [&.cash]:[color:var(--caramel-text)]";
+  "inline-flex items-center [padding:5px_12px] rounded-full [font-size:.875rem] font-bold [&.fee]:[background:var(--sage-tint)] [&.fee]:[color:var(--sage-dark)] [&.cash]:[background:var(--caramel-tint)] [&.cash]:[color:var(--caramel-text)]";
 export const C_JOB_ICO =
   "grid place-items-center [width:48px] [height:48px] rounded-[50%] [background:var(--sage-tint)] [color:var(--sage-dark)] border-0 hover:[background:var(--sage-dark)] hover:[color:#fff]";
 export const C_KPI =

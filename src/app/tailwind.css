@@ -210,17 +210,18 @@
     @apply size-[7px] rounded-full bg-current;
     content: '';
   }
+  /* Badge text uses the same deep shades as .alert: the plain status colours fall just under AA at 0.8rem. */
   .badge.ok {
-    @apply bg-[color:var(--ok-bg)] text-[color:var(--ok)];
+    @apply bg-[color:var(--ok-bg)] text-[#10522f];
   }
   .badge.warn {
-    @apply bg-[color:var(--warn-bg)] text-[color:var(--warn)];
+    @apply bg-[color:var(--warn-bg)] text-[#5e3a00];
   }
   .badge.danger {
-    @apply bg-[color:var(--danger-bg)] text-danger;
+    @apply bg-[color:var(--danger-bg)] text-[#7a1a12];
   }
   .badge.info {
-    @apply bg-[color:var(--info-bg)] text-[color:var(--info)];
+    @apply bg-[color:var(--info-bg)] text-[#173f73];
   }
   .badge.neutral {
     @apply bg-[#efe8d8] text-muted;
