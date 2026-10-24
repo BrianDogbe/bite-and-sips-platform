@@ -118,7 +118,6 @@ export function Checkout({
   const [loc, setLoc] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
   const [locStatus, setLocStatus] = useState<string | null>(null);
   const [zoneNoticeOn, setZoneNoticeOn] = useState(true);
-  const [locFailed, setLocFailed] = useState(false);
   const [areaQuery, setAreaQuery] = useState('');
   const [areaPicked, setAreaPicked] = useState<string | null>(null);
   const [zoneId, setZoneId] = useState<number | null>(null);
@@ -273,11 +272,9 @@ export function Checkout({
 
   function useMyLocation() {
     if (!('geolocation' in navigator)) {
-      setLocFailed(true);
       setLocStatus('Your browser can’t share location. Type your area below instead.');
       return;
     }
-    setLocFailed(false);
     setLocStatus('Finding your location…');
     navigator.geolocation.getCurrentPosition(
       async (p) => {
@@ -306,7 +303,6 @@ export function Checkout({
         }
       },
       (err) => {
-        setLocFailed(true);
         setLocStatus(err.code === err.PERMISSION_DENIED ? 'Location permission was denied. Type your area below instead.' : 'We couldn’t get your location. Type your area below instead.');
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
@@ -321,7 +317,7 @@ export function Checkout({
     if (contact.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contact.email.trim())) e.email = 'Enter a valid email';
     if (type === 'delivery') {
       if (addr.addressLine.trim().length < 3) e.addressLine = 'Enter your street, house number or building';
-      if (!loc && !zoneId) e.location = 'Share your location or choose your area';
+      if (!loc && !zoneId) e.location = areaPicked && zones.length > 1 ? 'Choose the delivery zone for your area' : 'Share your location or choose your area';
     }
     if (!asap && !slot) e.slot = 'Choose a time';
     setFieldErrors(e);
@@ -580,9 +576,9 @@ export function Checkout({
                     {locStatus}
                   </p>
                 )}
-                {!loc && ordering.allowManualZone && locFailed && (
+                {!loc && ordering.allowManualZone && (
                   <div className="field relative" style={{ marginTop: 8 }}>
-                    <label htmlFor="area">Type your area</label>
+                    <label htmlFor="area">Or type your area</label>
                     <input
                       id="area"
                       className="input"
@@ -608,7 +604,8 @@ export function Checkout({
                               onClick={() => {
                                 setAreaPicked(name);
                                 setAreaQuery(name);
-                                setZoneId(zones[0]?.id ?? null);
+                                // Area names carry no map position, so only a single zone can be chosen for the customer.
+                                setZoneId(zones.length === 1 ? zones[0].id : null);
                                 setAddr((cur) => ({ ...cur, addressLine: cur.addressLine.trim() ? cur.addressLine : `${name}, Tema` }));
                                 setFieldErrors((fe) => ({ ...fe, location: '', addressLine: '' }));
                               }}
@@ -621,6 +618,27 @@ export function Checkout({
                       </ul>
                     )}
                     {!areaPicked && areaQuery.trim().length > 1 && matchAreas(areaQuery).length === 0 && <span className="hint">We don’t recognise that area. Try a community number or neighbourhood in Tema.</span>}
+                    {areaPicked && zones.length > 1 && (
+                      <div className="field" style={{ marginTop: 8 }}>
+                        <label htmlFor="zone">Which delivery zone is {areaPicked} in?</label>
+                        <select
+                          id="zone"
+                          className="select"
+                          value={zoneId ?? ''}
+                          onChange={(e) => {
+                            setZoneId(e.target.value ? Number(e.target.value) : null);
+                            setFieldErrors((fe) => ({ ...fe, location: '' }));
+                          }}
+                        >
+                          <option value="">Choose a zone</option>
+                          {zones.map((z) => (
+                            <option key={z.id} value={z.id}>
+                              {z.description ? `${z.name}: ${z.description}` : z.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <span className="hint">{areaPicked ? 'The delivery fee shown is an estimate. We’ll call to confirm your exact location.' : 'We’ll call to confirm your exact location if you don’t share it.'}</span>
                   </div>
                 )}

@@ -91,12 +91,9 @@ export default async function AccountPage() {
         <section className="panel">
           <h2>Notifications</h2>
           <ActionForm action={saveNotificationPrefs} className="stack">
-            <label className="check">
-              <input type="checkbox" name="sms" defaultChecked={prefs.notifySms} /> <span>Text me order updates</span>
-            </label>
-            <label className="check">
-              <input type="checkbox" name="email" defaultChecked={prefs.notifyEmail} /> <span>Email me receipts and order updates</span>
-            </label>
+            {/* SMS and email delivery aren't verified yet, so their switches stay hidden; the saved choices are carried through unchanged. */}
+            {prefs.notifySms && <input type="hidden" name="sms" value="on" />}
+            {prefs.notifyEmail && <input type="hidden" name="email" value="on" />}
             <label className="check">
               <input type="checkbox" name="marketing" defaultChecked={prefs.marketingOptIn} /> <span>Tell me about offers (optional)</span>
             </label>

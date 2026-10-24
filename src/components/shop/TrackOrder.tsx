@@ -35,6 +35,7 @@ function dotCls(state: 'done' | 'current' | 'todo') {
 type View = TrackingView;
 
 const FINISHED: CustomerStage[] = ['delivered', 'completed', 'cancelled'];
+const LATE_STAGES: CustomerStage[] = ['received', 'confirmed', 'preparing', 'waiting_for_rider', 'rider_assigned', 'picked_up', 'on_the_way'];
 
 function ago(ms: number) {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -97,6 +98,10 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
   const sameDay = localDateKey(new Date(o.promisedAt), tz) === localDateKey(new Date(), tz);
   const promised = sameDay ? formatLocalTime(o.promisedAt, tz) : formatLocalDateTime(o.promisedAt, tz);
   const expiresIn = o.paymentExpiresAt ? new Date(o.paymentExpiresAt).getTime() - now : null;
+  // Past the promised time while still on our side (not waiting on payment or on the customer collecting).
+  const lateMin = Math.floor((now - new Date(o.promisedAt).getTime()) / 60000);
+  const late = LATE_STAGES.includes(stage) && lateMin >= 1;
+  const lateBy = lateMin < 60 ? `about ${lateMin} min` : lateMin < 120 ? 'over an hour' : `over ${Math.floor(lateMin / 60)} hours`;
 
   async function payNow() {
     setPayBusy(true);
@@ -149,7 +154,7 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             {stage === 'awaiting_payment' && 'Your order is reserved. Complete payment to send it to the kitchen.'}
             {stage === 'received' && 'The kitchen has your order.'}
             {stage === 'confirmed' && 'The kitchen has accepted your order.'}
-            {stage === 'preparing' && `Being prepared. ${o.fulfillmentType === 'pickup' ? `Pickup time: ${promised}.` : `Expected ready around ${promised}.`}`}
+            {stage === 'preparing' && (late ? 'Being prepared.' : `Being prepared. ${o.fulfillmentType === 'pickup' ? `Pickup time: ${promised}.` : `Expected ready around ${promised}.`}`)}
             {stage === 'ready_for_pickup' && 'Show your order number at the counter.'}
             {stage === 'waiting_for_rider' && 'Your food is ready and waiting for a rider.'}
             {stage === 'rider_assigned' && 'A rider is on the way to the restaurant.'}
@@ -159,6 +164,18 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             {stage === 'cancelled' && (o.cancelReason ? `Reason: ${o.cancelReason}` : 'This order was cancelled.')}
             {stage === 'attention' && 'There’s a problem with the delivery. We’ll contact you, or you can reach us below.'}
           </p>
+          {late && (
+            <div className="alert warn mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5" role="status">
+              <p className="m-0">
+                <strong>{lateMin > 180 ? `This order is much later than promised. ${v.restaurant.phone ? 'Please call us.' : 'Please contact us below.'}` : `Running ${lateBy} late. Sorry, we’re on it.`}</strong> {o.fulfillmentType === 'pickup' ? 'Your pickup' : 'Your order'} was due at {promised}.
+              </p>
+              {v.restaurant.phone && (
+                <a className="btn sm" href={`tel:${v.restaurant.phone.replace(/\s/g, '')}`}>
+                  <Icon name="phone" size={16} className="flex-none" /> Call {v.restaurant.name}
+                </a>
+              )}
+            </div>
+          )}
           {stage !== 'cancelled' && stage !== 'attention' && (
             <ol className="relative m-0 mt-[22px] grid list-none auto-cols-fr grid-flow-col p-0 max-[380px]:auto-cols-[minmax(0,1fr)]" aria-label="Order progress">
               {tl.map((st, i) => (
@@ -252,10 +269,10 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
                 )}
                 <dl className="m-0 grid grid-cols-2 gap-3 max-[480px]:grid-cols-1">
                   <div>
-                    <dt className={PK_DT}>Expected</dt>
+                    <dt className={PK_DT}>{late ? 'Was due' : 'Expected'}</dt>
                     <dd className={PK_DD}>
                       {promised}
-                      {o.isAsap && <small className={PK_DD_SMALL}>Around this time</small>}
+                      {o.isAsap && !late && <small className={PK_DD_SMALL}>Around this time</small>}
                     </dd>
                   </div>
                   <div>
