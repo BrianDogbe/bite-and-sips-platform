@@ -18,6 +18,13 @@ function mins(fromIso: string | Date | null, now: number) {
 
 const SOUND_KEY = 'bs-kds-sound';
 const REMIND_MS = 30000;
+// One-tap decline reasons. The customer sees the text on their tracking page, so it's written to them.
+const DECLINE_REASONS: { text: string; deliveryOnly?: boolean }[] = [
+  { text: 'Something in your order is sold out' },
+  { text: 'The kitchen is too busy right now' },
+  { text: 'We’re closing soon' },
+  { text: 'We can’t deliver to this address', deliveryOnly: true },
+];
 
 // One shared audio context. Browsers keep it suspended until someone taps the page, so callers check `state`.
 let audioCtx: AudioContext | null = null;
@@ -81,6 +88,10 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
   // Below 900px the three columns become tabs; this is the one showing.
   const [activeCol, setActiveCol] = useState('new');
   const [issueFor, setIssueFor] = useState<Ticket | null>(null);
+  // Ticket ids with the decline-reason or recall-confirm step open (shown inside the ticket, no browser pop-up).
+  const [declineFor, setDeclineFor] = useState<string | null>(null);
+  const [declineOther, setDeclineOther] = useState('');
+  const [recallFor, setRecallFor] = useState<string | null>(null);
   const [issueText, setIssueText] = useState('');
   const [soldOutOpen, setSoldOutOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -487,7 +498,48 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                       {(data?.riders ?? []).every((r) => !r.online) && <span className="[font-size:.8rem] [color:var(--muted)]">No riders are online right now.</span>}
                     </div>
                   )}
-                  {!readOnly && (
+                  {!readOnly && declineFor === t.id && (
+                    <div className="grid [gap:8px] [padding:10px_14px_14px] [border-top:1px_solid_var(--line)]" role="group" aria-label={`Decline order ${t.orderNumber}`}>
+                      <p className="m-0 font-bold">Decline {t.orderNumber}? The customer will see the reason.</p>
+                      <div className="grid [grid-template-columns:repeat(2,_minmax(0,_1fr))] [gap:8px] max-[520px]:[grid-template-columns:1fr] [&_.btn]:[min-height:56px] [&_.btn]:whitespace-normal">
+                        {DECLINE_REASONS.filter((r) => !r.deliveryOnly || t.fulfillmentType === 'delivery').map((r) => (
+                          <button key={r.text} className="btn" disabled={!!busy} onClick={() => { setDeclineFor(null); void act(t, 'decline', r.text); }}>
+                            {r.text}
+                          </button>
+                        ))}
+                      </div>
+                      <form
+                        className="flex [gap:8px] [&_.btn]:[min-height:56px]"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!declineOther.trim()) return;
+                          setDeclineFor(null);
+                          void act(t, 'decline', declineOther.trim());
+                          setDeclineOther('');
+                        }}
+                      >
+                        <input className="input [flex:1_1_auto] [min-height:56px]" aria-label="Other reason" placeholder="Other reason…" value={declineOther} onChange={(e) => setDeclineOther(e.target.value)} maxLength={200} />
+                        <button className="btn danger" disabled={!!busy || !declineOther.trim()}>Decline</button>
+                      </form>
+                      <button className="btn primary [min-height:56px] [font-size:1.1rem]" onClick={() => { setDeclineFor(null); setDeclineOther(''); }}>
+                        Keep order
+                      </button>
+                    </div>
+                  )}
+                  {!readOnly && recallFor === t.id && (
+                    <div className="grid [gap:8px] [padding:10px_14px_14px] [border-top:1px_solid_var(--line)]" role="group" aria-label={`Recall order ${t.orderNumber}`}>
+                      <p className="m-0 font-bold">Send {t.orderNumber} back to preparing?</p>
+                      <div className="flex [gap:8px] [&_.btn]:[flex:1_1_0] [&_.btn]:[min-height:56px] [&_.btn]:[font-size:1.1rem]">
+                        <button className="btn" disabled={!!busy} onClick={() => { setRecallFor(null); void act(t, 'recall'); }}>
+                          Yes, recall
+                        </button>
+                        <button className="btn primary" onClick={() => setRecallFor(null)}>
+                          Keep it ready
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {!readOnly && declineFor !== t.id && recallFor !== t.id && (
                     <div className="flex flex-wrap [gap:8px] [padding:10px_14px_14px] [&_.btn]:[flex:1_1_auto] [&_.btn]:[min-height:56px] [&_.btn]:[font-size:1.1rem]">
                       {t.kitchenStatus === 'new' && (
                         <button className="btn primary" disabled={!!busy} onClick={() => act(t, 'accept')}>
@@ -495,14 +547,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                         </button>
                       )}
                       {t.kitchenStatus === 'new' && (
-                        <button
-                          className="btn"
-                          disabled={!!busy}
-                          onClick={() => {
-                            const reason = window.prompt(`Why are you declining order ${t.orderNumber}? The customer will be told.`);
-                            if (reason && reason.trim()) void act(t, 'decline', reason.trim());
-                          }}
-                        >
+                        <button className="btn ghost [flex:0_0_auto]! [font-size:1rem]! [color:var(--muted)]" disabled={!!busy} onClick={() => setDeclineFor(t.id)}>
                           Decline
                         </button>
                       )}
@@ -522,7 +567,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                         </button>
                       )}
                       {t.kitchenStatus === 'ready' && (
-                        <button className="btn" disabled={!!busy} onClick={() => act(t, 'recall')}>
+                        <button className="btn" disabled={!!busy} onClick={() => setRecallFor(t.id)}>
                           Recall
                         </button>
                       )}

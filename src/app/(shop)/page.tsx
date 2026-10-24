@@ -5,7 +5,6 @@ import { summarizeHours } from '@/components/shop/HoursList';
 import { DEFAULT_STORY } from '@/lib/about-story';
 import { formatGHS } from '@/lib/money';
 import { formatLocalDateTime } from '@/lib/time';
-import { StepTile } from '@/components/shop/StepTile';
 import { Marquee } from '@/components/shop/Marquee';
 import type { ClientMenuItem } from '@/components/shop/types';
 
@@ -14,7 +13,7 @@ export const dynamic = 'force-dynamic';
 const KICKER = 'text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-caramel';
 const VISIT_ICO = 'grid size-10 flex-none place-items-center rounded-full bg-[var(--caramel)] text-espresso';
 
-function StepCard({ n, title, href, footer, highlight, children }: { n: number; title: string; href: string; footer: string; highlight: boolean; children: React.ReactNode }) {
+function StepCard({ n, title, href, footer, highlight, children }: { n: number; title: string; href?: string; footer: string; highlight: boolean; children: React.ReactNode }) {
   return (
     <article className={`group flex flex-col px-7 pb-6 pt-7 text-ivory transition-colors duration-[250ms] motion-reduce:transition-none ${highlight ? 'bg-sage' : 'bg-espresso hover:bg-sage'}`}>
       <div className="mb-7 flex items-center justify-between">
@@ -27,10 +26,15 @@ function StepCard({ n, title, href, footer, highlight, children }: { n: number; 
       </div>
       <h3 className="mb-3 mt-0 font-[family-name:var(--font-display)] text-[1.6rem] font-normal leading-[1.15] text-white">{title}</h3>
       <p className={`m-0 mb-5 text-[0.98rem] leading-[1.55] ${highlight ? 'text-ivory' : 'text-[#e6ddcf] group-hover:text-ivory'}`}>{children}</p>
-      <Link href={href} className="mt-auto flex items-center justify-between border-t border-[rgba(247,242,233,0.2)] pt-4 text-[0.8rem] font-extrabold uppercase tracking-[0.14em] text-white no-underline">
-        <span>{footer}</span>
-        <span className="grid size-10 place-items-center rounded-full border border-[rgba(247,242,233,0.6)] text-[1.1rem] tracking-normal transition-[background-color,color] duration-200 group-hover:border-[var(--caramel)] group-hover:bg-[var(--caramel)] group-hover:text-espresso motion-reduce:transition-none" aria-hidden="true">→</span>
-      </Link>
+      {href ? (
+        <Link href={href} className="mt-auto flex items-center justify-between border-t border-[rgba(247,242,233,0.2)] pt-4 text-[0.8rem] font-extrabold uppercase tracking-[0.14em] text-white no-underline">
+          <span>{footer}</span>
+          <span className="grid size-10 place-items-center rounded-full border border-[rgba(247,242,233,0.6)] text-[1.1rem] tracking-normal transition-[background-color,color] duration-200 group-hover:border-[var(--caramel)] group-hover:bg-[var(--caramel)] group-hover:text-espresso motion-reduce:transition-none" aria-hidden="true">→</span>
+        </Link>
+      ) : (
+        // No page to send people to: same footer line, without the link and arrow (kept the arrow's height so cards line up).
+        <div className="mt-auto flex min-h-14 items-center border-t border-[rgba(247,242,233,0.2)] pt-4 text-[0.8rem] font-extrabold uppercase tracking-[0.14em] text-white">{footer}</div>
+      )}
     </article>
   );
 }
@@ -136,13 +140,12 @@ export default async function Home() {
               </li>
               <li className="flex items-center gap-2.5 border-r border-[var(--espresso-2)] pr-[22px] mr-[22px] last:mr-0 last:border-r-0 last:pr-0 max-[860px]:mr-3.5 max-[860px]:pr-3.5 max-[600px]:border-r-0 max-[600px]:pr-0">
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M2 6h11v10H2zM13 9h4l3 3v4h-7" />
-                  <circle cx="6.5" cy="17.5" r="1.8" />
-                  <circle cx="16.5" cy="17.5" r="1.8" />
+                  <path d="M3 12V4h8l10 10-8 8L3 12Z" />
+                  <circle cx="7.5" cy="8.5" r="1.3" />
                 </svg>
                 <span className="grid leading-[1.25] text-espresso">
-                  <strong className="text-[0.9rem]">Fast &amp; reliable</strong>
-                  <small className="text-[0.78rem] text-muted">Delivery &amp; pickup</small>
+                  <strong className="text-[0.9rem]">Order direct</strong>
+                  <small className="text-[0.78rem] text-muted">No app commission</small>
                 </span>
               </li>
             </ul>
@@ -227,16 +230,12 @@ export default async function Home() {
             <StepCard n={1} title="Pick your food" href="/menu" footer="No account needed" highlight={false}>
               Choose sizes, sides and extras. You don’t need an account.
             </StepCard>
-            <StepTile label="Photos of our sandwiches and a snack box" images={[{ src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }, { src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }]} />
-            <StepCard n={2} title="Choose pickup or delivery" href="/about" footer="Pickup or delivery" highlight={false}>
+            <StepCard n={2} title="Choose pickup or delivery" href="/menu" footer="Pickup or delivery" highlight={false}>
               Pick a pickup time, or share your location so we can confirm we deliver to you.
             </StepCard>
-            <StepTile label="Photos of a snack box and our sandwiches" images={[{ src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }, { src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }]} />
-            <StepTile label="Photos of a snack box and our sandwiches" images={[{ src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }, { src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }]} />
-            <StepCard n={3} title="Pay securely" href="/policies" footer="Secure payment" highlight>
+            <StepCard n={3} title="Pay securely" footer="Secure payment" highlight>
               {sf.ordering.onlinePayments ? 'Mobile Money or card through our payment provider.' : ''}{sf.ordering.cashOnPickup || sf.ordering.cashOnDelivery ? ' Cash is accepted where shown at checkout.' : ''}
             </StepCard>
-            <StepTile label="More photos of our food" images={[{ src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }, { src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }]} />
             <StepCard n={4} title="Track it live" href="/track" footer="Live tracking" highlight={false}>
               Your tracking page updates as the kitchen cooks and your food heads out.
             </StepCard>
