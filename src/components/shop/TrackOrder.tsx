@@ -18,6 +18,8 @@ const PK_CARD = 'grid gap-1 rounded-[14px] bg-espresso p-[18px] text-center text
 const PK_DT = 'text-[0.78rem] uppercase tracking-[0.06em] text-muted';
 const PK_DD = 'm-0 mt-0.5 font-semibold text-espresso';
 const PK_DD_SMALL = 'block font-normal text-muted';
+/** "Need help?" buttons: long labels wrap inside the panel instead of overflowing; icon and text stay centred together. */
+const HELP_BTN = 'btn block whitespace-normal py-2.5 text-center leading-[1.3]';
 
 /** Step circle + connector line for the progress bar in the header. */
 function stepCls(state: 'done' | 'current' | 'todo') {
@@ -158,11 +160,12 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
             {stage === 'attention' && 'There’s a problem with the delivery. We’ll contact you, or you can reach us below.'}
           </p>
           {stage !== 'cancelled' && stage !== 'attention' && (
-            <ol className="relative m-0 mt-[22px] grid list-none auto-cols-fr grid-flow-col p-0" aria-label="Order progress">
+            <ol className="relative m-0 mt-[22px] grid list-none auto-cols-fr grid-flow-col p-0 max-[380px]:auto-cols-[minmax(0,1fr)]" aria-label="Order progress">
               {tl.map((st, i) => (
                 <li key={st} className={stepCls(i < idx ? 'done' : i === idx ? 'current' : 'todo')} aria-current={i === idx ? 'step' : undefined}>
                   <span className={dotCls(i < idx ? 'done' : i === idx ? 'current' : 'todo')} aria-hidden="true">{i < idx || (i === idx && i === tl.length - 1) ? '✓' : ''}</span>
-                  <span className="max-w-20 text-[0.72rem] leading-[1.2] min-[640px]:max-w-[110px] min-[640px]:text-[0.82rem] max-[380px]:max-w-14 max-[380px]:text-[0.64rem] max-[380px]:hyphens-auto">{CUSTOMER_STAGE_LABELS[st]}</span>
+                  {/* Small phones: only the current step is labelled, on one line; the rest stay for screen readers. */}
+                  <span className={`max-w-20 text-[0.75rem] leading-[1.2] min-[640px]:max-w-[110px] min-[640px]:text-[0.82rem] ${i === idx ? 'max-[380px]:max-w-none max-[380px]:whitespace-nowrap max-[380px]:[li:first-child>&]:self-start max-[380px]:[li:last-child>&]:self-end' : 'max-[380px]:sr-only'}`}>{CUSTOMER_STAGE_LABELS[st]}</span>
                 </li>
               ))}
             </ol>
@@ -425,17 +428,17 @@ export function TrackOrder({ token, initial, fromPayment, retryPay }: { token: s
               </p>
             </section>
             <section className="panel">
-              <h2>Need help?</h2>
+              <h2 className="mb-5">Need help?</h2>
               <div className="stack" style={{ ['--stack' as string]: '10px' }}>
                 {v.restaurant.phone && (
-                  <a className="btn block" href={`tel:${v.restaurant.phone.replace(/\s/g, "")}`}>
-                    <Icon name="phone" size={18} /> Call {v.restaurant.name}
+                  <a className={HELP_BTN} href={`tel:${v.restaurant.phone.replace(/\s/g, "")}`}>
+                    <Icon name="phone" size={18} className="flex-none" /> Call {v.restaurant.name}
                   </a>
                 )}
-                <Link className="btn block" href={`/help?t=${encodeURIComponent(token)}`}>
+                <Link className={HELP_BTN} href={`/help?t=${encodeURIComponent(token)}`}>
                   Report a problem with this order
                 </Link>
-                <Link className="btn block" href="/menu">
+                <Link className={HELP_BTN} href="/menu">
                   Order more
                 </Link>
                 {v.canCancel && !cancelOpen && (

@@ -132,6 +132,8 @@
   }
   .btn.block {
     @apply w-full;
+    /* The Tailwind `block` utility (display: block) would otherwise win and stop links from centring their text vertically. */
+    display: flex !important;
   }
   .btn.lg {
     @apply min-h-[54px] px-6 text-[1.08rem];

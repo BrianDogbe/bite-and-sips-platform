@@ -16,7 +16,7 @@ const link =
   "inline-flex min-h-11 items-center text-[#e6ddcf] no-underline hover:text-[var(--caramel)] before:mr-2.5 before:inline-block before:text-[#c9bfb2] before:content-['→'] hover:before:text-[var(--caramel)]";
 const plain = 'text-[#e6ddcf] no-underline hover:text-[var(--caramel)]';
 const soc =
-  'grid size-10 place-items-center rounded-full bg-white text-[0.95rem] text-espresso no-underline hover:bg-[var(--caramel)] hover:text-espresso';
+  'grid size-11 place-items-center rounded-full bg-white text-[0.95rem] text-espresso no-underline hover:bg-[var(--caramel)] hover:text-espresso';
 const ico = 'grid size-9 flex-none place-items-center rounded-full bg-[var(--caramel)] text-espresso';
 
 export function ShopFooter({ sf, menu }: { sf: Storefront; menu: Menu }) {

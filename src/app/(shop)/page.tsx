@@ -8,6 +8,7 @@ import { formatGHS } from '@/lib/money';
 import { formatLocalDateTime } from '@/lib/time';
 import { StepTile } from '@/components/shop/StepTile';
 import { StoryPlayer } from '@/components/shop/StoryPlayer';
+import { Marquee } from '@/components/shop/Marquee';
 import type { ClientMenuItem } from '@/components/shop/types';
 
 export const dynamic = 'force-dynamic';
@@ -154,9 +155,9 @@ export default async function Home() {
         </div>
       </section>
 
-      <div className="group flex select-none overflow-hidden bg-[var(--caramel)] py-4 text-espresso" aria-hidden="true">
+      <Marquee className="group flex select-none overflow-hidden bg-[var(--caramel)] py-4 text-espresso">
         {[0, 1].map((n) => (
-          <div className="flex min-w-full shrink-0 animate-marquee justify-around [animation-duration:48s] group-hover:[animation-play-state:paused] motion-reduce:animate-none" key={n}>
+          <div className="flex min-w-full shrink-0 animate-marquee justify-around [animation-duration:48s] group-hover:[animation-play-state:paused] group-data-held:[animation-play-state:paused] motion-reduce:animate-none" key={n}>
             {marqueeWords.map((t) => (
               <span key={t} className="inline-flex items-center whitespace-nowrap px-6 font-[family-name:var(--font-display)] text-[length:clamp(1.3rem,2.4vw,1.85rem)] after:ml-12 after:size-1.5 after:rounded-full after:bg-espresso after:content-['']">
                 {t}
@@ -164,7 +165,7 @@ export default async function Home() {
             ))}
           </div>
         ))}
-      </div>
+      </Marquee>
 
       {upcomingClosure && (
         <div className="mx-auto mt-5 w-full max-w-[var(--maxw)] px-[var(--gutter)]">
