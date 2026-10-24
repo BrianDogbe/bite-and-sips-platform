@@ -19,7 +19,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
       <p className="muted">Tell us what went wrong and we’ll call you back.{r.phone ? ' For urgent problems with an order in progress, call us now.' : ''}</p>
       {r.phone && (
         <p>
-          <a className="btn" href={`tel:${r.phone.replace(/\s/g, '')}`}>
+          <a className="btn whitespace-normal py-2.5 text-center leading-[1.3]" href={`tel:${r.phone.replace(/\s/g, '')}`}>
             <Icon name="phone" size={18} className="flex-none" /> Call {r.name} on {r.phone}
           </a>
         </p>

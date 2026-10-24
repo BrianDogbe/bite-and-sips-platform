@@ -433,6 +433,9 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
             {c.list.length === 0 && <p className="grid place-items-center [min-height:140px] m-0 [border:1.5px_dashed_var(--line-strong,_var(--border))] [border-radius:12px] [color:var(--muted)] font-semibold text-center [.admin-main_&]:[min-height:180px] [.kds-alerts_&&]:[min-height:90px] [.kds-alerts_&]:[gap:6px] [.kds-alerts_&]:[padding:16px]">{c.key === 'new' ? 'No new orders.' : 'Nothing here.'}</p>}
             {c.list.map((t, i) => {
               const late = isLate(t);
+              // Only while the order is still in the state the step applies to (it may change under the cook's hands).
+              const declining = declineFor === t.id && t.kitchenStatus === 'new';
+              const recalling = recallFor === t.id && t.kitchenStatus === 'ready';
               const waitingAccept = t.kitchenStatus === 'new';
               const groupStart = c.key === 'new' && t.kitchenStatus !== c.list[i - 1]?.kitchenStatus;
               const groupSize = c.list.filter((o) => o.kitchenStatus === t.kitchenStatus).length;
@@ -498,7 +501,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                       {(data?.riders ?? []).every((r) => !r.online) && <span className="[font-size:.8rem] [color:var(--muted)]">No riders are online right now.</span>}
                     </div>
                   )}
-                  {!readOnly && declineFor === t.id && (
+                  {!readOnly && declining && (
                     <div className="grid [gap:8px] [padding:10px_14px_14px] [border-top:1px_solid_var(--line)]" role="group" aria-label={`Decline order ${t.orderNumber}`}>
                       <p className="m-0 font-bold">Decline {t.orderNumber}? The customer will see the reason.</p>
                       <div className="grid [grid-template-columns:repeat(2,_minmax(0,_1fr))] [gap:8px] max-[520px]:[grid-template-columns:1fr] [&_.btn]:[min-height:56px] [&_.btn]:whitespace-normal">
@@ -526,7 +529,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                       </button>
                     </div>
                   )}
-                  {!readOnly && recallFor === t.id && (
+                  {!readOnly && recalling && (
                     <div className="grid [gap:8px] [padding:10px_14px_14px] [border-top:1px_solid_var(--line)]" role="group" aria-label={`Recall order ${t.orderNumber}`}>
                       <p className="m-0 font-bold">Send {t.orderNumber} back to preparing?</p>
                       <div className="flex [gap:8px] [&_.btn]:[flex:1_1_0] [&_.btn]:[min-height:56px] [&_.btn]:[font-size:1.1rem]">
@@ -539,7 +542,7 @@ export function KitchenDisplay({ timezone, userName, roleLabel, canMarkSoldOut, 
                       </div>
                     </div>
                   )}
-                  {!readOnly && declineFor !== t.id && recallFor !== t.id && (
+                  {!readOnly && !declining && !recalling && (
                     <div className="flex flex-wrap [gap:8px] [padding:10px_14px_14px] [&_.btn]:[flex:1_1_auto] [&_.btn]:[min-height:56px] [&_.btn]:[font-size:1.1rem]">
                       {t.kitchenStatus === 'new' && (
                         <button className="btn primary" disabled={!!busy} onClick={() => act(t, 'accept')}>
