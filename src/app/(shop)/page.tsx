@@ -1,13 +1,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { headers } from 'next/headers';
 import { getStorefront, getMenuForStorefront, publicZones } from '@/server/storefront';
 import { summarizeHours } from '@/components/shop/HoursList';
 import { DEFAULT_STORY } from '@/lib/about-story';
 import { formatGHS } from '@/lib/money';
 import { formatLocalDateTime } from '@/lib/time';
 import { StepTile } from '@/components/shop/StepTile';
-import { StoryPlayer } from '@/components/shop/StoryPlayer';
 import { Marquee } from '@/components/shop/Marquee';
 import type { ClientMenuItem } from '@/components/shop/types';
 
@@ -38,20 +36,18 @@ function StepCard({ n, title, href, footer, highlight, children }: { n: number; 
 }
 
 export default async function Home() {
-  const [sf, menu, zones, hdrs] = await Promise.all([
+  const [sf, menu, zones] = await Promise.all([
     getStorefront(),
     getMenuForStorefront(),
     publicZones(),
-    headers(),
   ]);
   const r = sf.restaurant;
   const tz = r.timezone;
   const items = menu.items as unknown as ClientMenuItem[];
   const CATEGORY_PHOTOS: Record<string, string> = {
     sandwiches: '/brand/tuna-sandwich.jpg',
-    salads: '/brand/crunchy-salad.jpg',
     combo: '/brand/snack-box.jpg',
-    drinks: '/brand/cat-drinks.jpg',
+    // No usable salads or drinks photo yet: those tiles use the lettered placeholder until the owner supplies one.
   };
   const BLURBS: Record<string, string> = {
     shawarma: 'Grilled wraps packed with seasoned meat, fresh vegetables and our signature sauce.',
@@ -84,7 +80,6 @@ export default async function Home() {
   const activeClosure = sf.closures.find((c) => new Date(c.startsAt) <= now);
   const upcomingClosure = sf.closures.find((c) => new Date(c.startsAt) > now);
 
-  const saveData = hdrs.get('save-data')?.toLowerCase() === 'on';
   const tagline = (r.tagline || 'Good food. Good mood.').split(/(?<=[.!])\s+/).map((s) => s.replace(/[.!]$/, '')).filter(Boolean);
   const marqueeWords = [...tagline, ...groups.map((g) => g.name)];
 
@@ -223,7 +218,7 @@ export default async function Home() {
         )}
       </section>
 
-      {!saveData && <StoryPlayer src="/brand/story.mp4" poster="/brand/story-poster.jpg" title="Good food. Good mood." subtitle="Made fresh, ready for pickup or on its way to you." />}
+      {/* Brand video hidden until a new one is made from the owner's own photos (StoryPlayer, /brand/story.mp4). */}
 
       <section className="border-y border-[var(--border)] bg-ivory-2 py-[clamp(72px,10vw,144px)]" aria-labelledby="how-title">
         <div className="mx-auto w-full max-w-[var(--maxw)] px-[var(--gutter)]">
@@ -232,16 +227,16 @@ export default async function Home() {
             <StepCard n={1} title="Pick your food" href="/menu" footer="No account needed" highlight={false}>
               Choose sizes, sides and extras. You don’t need an account.
             </StepCard>
-            <StepTile label="Photos of our sandwiches and salads" images={[{ src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }, { src: '/brand/crunchy-salad.jpg', alt: 'Salad with egg and grilled chicken' }]} />
+            <StepTile label="Photos of our sandwiches and a snack box" images={[{ src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }, { src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }]} />
             <StepCard n={2} title="Choose pickup or delivery" href="/about" footer="Pickup or delivery" highlight={false}>
               Pick a pickup time, or share your location so we can confirm we deliver to you.
             </StepCard>
-            <StepTile label="Photos of a snack box and our drinks" images={[{ src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }, { src: '/brand/cat-drinks.jpg', alt: 'A Bite & Sips cup and smoothie' }]} />
-            <StepTile label="Photos of our table" images={[{ src: '/brand/cat-drinks.jpg', alt: 'A Bite & Sips cup and smoothie' }, { src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }]} />
+            <StepTile label="Photos of a snack box and our sandwiches" images={[{ src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }, { src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }]} />
+            <StepTile label="Photos of a snack box and our sandwiches" images={[{ src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }, { src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }]} />
             <StepCard n={3} title="Pay securely" href="/policies" footer="Secure payment" highlight>
               {sf.ordering.onlinePayments ? 'Mobile Money or card through our payment provider.' : ''}{sf.ordering.cashOnPickup || sf.ordering.cashOnDelivery ? ' Cash is accepted where shown at checkout.' : ''}
             </StepCard>
-            <StepTile label="More photos of our food" images={[{ src: '/brand/crunchy-salad.jpg', alt: 'Salad with egg and grilled chicken' }, { src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }]} />
+            <StepTile label="More photos of our food" images={[{ src: '/brand/tuna-sandwich.jpg', alt: 'Cut tuna and egg sandwiches in a kraft box' }, { src: '/brand/snack-box.jpg', alt: 'Snack box with sandwiches, fruit and a drink' }]} />
             <StepCard n={4} title="Track it live" href="/track" footer="Live tracking" highlight={false}>
               Your tracking page updates as the kitchen cooks and your food heads out.
             </StepCard>

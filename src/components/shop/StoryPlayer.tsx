@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
  * Click-to-play brand video. Only the poster loads with the page; the video element (and its download)
  * is created when the visitor presses play. Hidden entirely when the browser asks to save data.
  */
-export function StoryPlayer({ src, poster, title, subtitle }: { src: string; poster: string; title: string; subtitle: string }) {
+export function StoryPlayer({ src, poster, title, subtitle }: { src: string; poster?: string; title: string; subtitle: string }) {
   const [playing, setPlaying] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const ref = useRef<HTMLVideoElement>(null);
@@ -24,14 +24,15 @@ export function StoryPlayer({ src, poster, title, subtitle }: { src: string; pos
 
   return (
     <section className="bg-espresso px-[var(--gutter)] py-[clamp(48px,7vw,96px)]" aria-labelledby="story-title">
-      <div className="relative mx-auto aspect-[4/5] max-h-[78svh] w-full max-w-[var(--maxw)] overflow-hidden rounded-[20px] bg-[var(--espresso-2)] min-[640px]:aspect-video">
+      <div className={`relative mx-auto w-full max-w-[var(--maxw)] overflow-hidden rounded-[20px] bg-[var(--espresso-2)] ${poster || playing ? 'aspect-[4/5] max-h-[78svh] min-[640px]:aspect-video' : ''}`}>
         {playing ? (
           <video ref={ref} className="absolute inset-0 size-full object-cover" src={src} poster={poster} autoPlay muted loop playsInline controls preload="auto" aria-label={title} />
         ) : (
           <>
-            <Image src={poster} alt="" fill sizes="(max-width: 1180px) 100vw, 1180px" className="object-cover" />
-            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(53,37,31,0.85),rgba(53,37,31,0.1)_65%)]" />
-            <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-6 p-[clamp(20px,4vw,48px)]">
+            {poster && <Image src={poster} alt="" fill sizes="(max-width: 1180px) 100vw, 1180px" className="object-cover" />}
+            {poster && <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(53,37,31,0.85),rgba(53,37,31,0.1)_65%)]" />}
+            {/* Without a poster the panel shrinks to its text and play button; it grows to video size once playing. */}
+            <div className={`${poster ? 'absolute inset-x-0 bottom-0' : 'relative'} flex flex-wrap items-end justify-between gap-6 p-[clamp(20px,4vw,48px)]`}>
               <div className="max-w-[560px]">
                 <h2 id="story-title" className="m-0 mb-2 text-[length:clamp(1.9rem,4.4vw,3.4rem)] leading-[1.05] text-white">
                   {title}

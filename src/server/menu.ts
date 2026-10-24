@@ -1,6 +1,7 @@
 import 'server-only';
 import { sql, type Db } from './db';
 import { localParts, timeToMinutes } from '@/lib/time';
+import { approvedPhoto } from '@/lib/brand-photos';
 
 export interface MenuModifier {
   id: number;
@@ -141,6 +142,7 @@ export async function publicMenu(db: Db = sql) {
       .filter((i) => activeCats.has(i.categoryId))
       .map((i) => ({
         ...i,
+        imageUrl: approvedPhoto(i.imageUrl),
         orderable: isItemOrderable(i, true).ok,
         unavailableReason: isItemOrderable(i, true).reason ?? null,
         allergens: i.allergensVerified ? i.allergens : [],

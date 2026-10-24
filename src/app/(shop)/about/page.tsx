@@ -19,17 +19,14 @@ const BENTO_POS = [
 ];
 
 const VALUE_PHOTOS = [
-  { src: '/brand/crunchy-salad.jpg', alt: 'A fresh salad with grilled chicken and a boiled egg' },
   { src: '/brand/tuna-sandwich.jpg', alt: 'A creamy tuna sandwich' },
   { src: '/brand/snack-box.jpg', alt: 'A snack box from the menu' },
-  { src: '/brand/cat-drinks.jpg', alt: 'Chilled milk drinks' },
 ];
 
 const MAKE_PHOTOS: Record<string, string> = {
   sandwiches: '/brand/tuna-sandwich.jpg',
-  salads: '/brand/crunchy-salad.jpg',
   combo: '/brand/snack-box.jpg',
-  drinks: '/brand/cat-drinks.jpg',
+  // Salads and drinks have no usable photo yet, so their tiles use the plain gradient.
 };
 
 const PROC_ICONS = [
