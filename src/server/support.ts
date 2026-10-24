@@ -15,7 +15,8 @@ export async function openSupportCase(raw: unknown, ctx: { user: SessionUser | n
   const p = supportCaseSchema.safeParse(raw);
   if (!p.success) throw invalid('Please check the form.', p.error.flatten());
   const v = p.data;
-  if (!v.phone && !v.email) throw invalid('Give us a phone number or email so we can reply.');
+  // We reply by phone (SMS and email delivery aren't set up yet), so a number is required.
+  if (!v.phone) throw invalid('Give us a phone number so we can call you back.');
   return tx(async (t) => {
     let orderId: string | null = null;
     if (v.trackingToken) {

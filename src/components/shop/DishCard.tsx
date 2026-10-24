@@ -4,10 +4,12 @@ import { Icon } from '../Icon';
 import { formatGHS } from '@/lib/money';
 import type { ClientMenuItem } from './types';
 
+/** Lowest price, prefixed "from" when the dish comes in sizes at different prices. */
 export function fromPrice(item: ClientMenuItem) {
   if (item.variants.length) {
-    const min = Math.min(...item.variants.filter((v) => v.isAvailable).map((v) => v.pricePesewas).concat(item.variants.map((v) => v.pricePesewas)));
-    return formatGHS(min);
+    const prices = item.variants.map((v) => v.pricePesewas);
+    const min = Math.min(...prices);
+    return new Set(prices).size > 1 ? `from ${formatGHS(min)}` : formatGHS(min);
   }
   return formatGHS(item.basePricePesewas);
 }
@@ -42,7 +44,7 @@ export function DishCard({ item, onOpen, best }: { item: ClientMenuItem; onOpen:
         <span className="mt-auto block pt-1.5 text-[1.25rem] font-extrabold tabular-nums text-espresso">{fromPrice(item)}</span>
         {item.orderable ? (
           <span className={`${BTN} bg-espresso text-ivory transition-[filter] duration-200 group-hover:brightness-[1.08] motion-reduce:transition-none`} aria-hidden="true">
-            <Icon name="cart" size={18} /> Add to cart
+            <Icon name="plus" size={18} /> Choose
           </span>
         ) : (
           <span className={`${BTN} bg-[rgba(53,37,31,0.15)] text-[rgba(53,37,31,0.7)]`} aria-hidden="true">

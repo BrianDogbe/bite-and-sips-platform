@@ -40,6 +40,20 @@ export async function itemsFor(orderId: string, db: Db = sql) {
  */
 export const TRACKING_PERSONAL_DATA_DAYS = 30;
 
+/**
+ * Contact details to pre-fill the help form when it's opened from a tracking page. The token already grants access to
+ * the order; personal details are withheld once they'd be hidden on the tracking page too.
+ */
+export async function supportPrefill(token: string, db: Db = sql): Promise<{ orderNumber: string; name: string; phone: string } | null> {
+  if (!token || token.length < 20 || token.length > 100) return null;
+  const [o] = await db<Pick<OrderRow, 'orderNumber' | 'customerName' | 'customerPhone' | 'status' | 'completedAt' | 'createdAt'>[]>`
+    select order_number, customer_name, customer_phone, status, completed_at, created_at from orders where tracking_token = ${token}`;
+  if (!o) return null;
+  const finished = o.status === 'completed' || o.status === 'cancelled';
+  if (finished && Date.now() - new Date(o.completedAt ?? o.createdAt).getTime() > TRACKING_PERSONAL_DATA_DAYS * 86400_000) return null;
+  return { orderNumber: o.orderNumber, name: o.customerName, phone: o.customerPhone };
+}
+
 export async function trackingView(token: string, db: Db = sql) {
   if (!token || token.length < 20 || token.length > 100) throw notFound('Order');
   const [o] = await db<OrderRow[]>`select * from orders where tracking_token = ${token}`;

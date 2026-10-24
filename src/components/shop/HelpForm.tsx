@@ -13,15 +13,15 @@ const CATS: [string, string][] = [
   ['other', 'Something else'],
 ];
 
-export function HelpForm({ trackingToken }: { trackingToken: string | null }) {
-  const [f, setF] = useState({ orderNumber: '', name: '', phone: '', email: '', category: 'missing_order', message: '' });
+export function HelpForm({ trackingToken, prefill, openNow }: { trackingToken: string | null; prefill: { orderNumber: string; name: string; phone: string } | null; openNow: boolean }) {
+  const [f, setF] = useState({ orderNumber: prefill?.orderNumber ?? '', name: prefill?.name ?? '', phone: prefill?.phone ?? '', email: '', category: 'missing_order', message: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   if (done)
     return (
       <div className="alert ok" role="status">
-        Thanks, we’ve received your message. Your case number is <strong>{done}</strong>. We’ll contact you as soon as possible.
+        Thanks, we’ve received your message. Your case number is <strong>{done}</strong>. Someone from the team will call you on <strong className="tnum">{f.phone}</strong> {openNow ? 'as soon as we can today' : 'when we next open'}.
       </div>
     );
   return (
@@ -67,9 +67,10 @@ export function HelpForm({ trackingToken }: { trackingToken: string | null }) {
         </div>
         <div className="field">
           <label htmlFor="h-phone">Phone</label>
-          <input id="h-phone" className="input" type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} maxLength={16} />
+          <input id="h-phone" className="input" type="tel" required autoComplete="tel" aria-describedby="h-phone-hint" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} maxLength={16} />
         </div>
       </div>
+      <p className="hint m-0" id="h-phone-hint">We reply by phone call{openNow ? '' : ' once we’re open'}.</p>
       <div className="field">
         <label htmlFor="h-email">Email (optional)</label>
         <input id="h-email" className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} maxLength={120} />
